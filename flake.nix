@@ -33,7 +33,7 @@
       darwinModules.default = import ./nix/darwin-module.nix { inherit self; };
       homeManagerModules.default = import ./nix/home-manager-module.nix { inherit self; };
 
-      formatter = forAllSystems (system: (import nixpkgs { inherit system; }).nixfmt-rfc-style);
+      formatter = forAllSystems (system: (import nixpkgs { inherit system; }).nixfmt-tree);
 
       checks = forAllSystems (
         system:
