@@ -34,5 +34,23 @@
       homeManagerModules.default = import ./nix/home-manager-module.nix { inherit self; };
 
       formatter = forAllSystems (system: (import nixpkgs { inherit system; }).nixfmt-rfc-style);
+
+      checks = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+        in
+        {
+          static =
+            pkgs.runCommand "enclave-key-static-check"
+              {
+                nativeBuildInputs = [ pkgs.nushell ];
+              }
+              ''
+                ${pkgs.nushell}/bin/nu --no-config-file ${./tests/check.nu} ${./.}
+                touch "$out"
+              '';
+        }
+      );
     };
 }
