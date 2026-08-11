@@ -341,6 +341,140 @@ def "main ctk import-certificate" [certificate_file: string] {
     checked-output $result "sc_auth import-ctk-certificate" | print
 }
 
+def shell-quote [value: string]: nothing -> string {
+    let escaped = ($value | str replace --all "'" "'\\''")
+    $"'($escaped)'"
+}
+
+def github-endpoint [key_type: string]: nothing -> string {
+    match $key_type {
+        "signing" => "/user/ssh_signing_keys"
+        "authentication" => "/user/keys"
+        _ => (error make {msg: $"unsupported GitHub key type: ($key_type)"})
+    }
+}
+
+def is-list-value [value: any]: nothing -> bool {
+    ($value | describe) | str starts-with "list"
+}
+
+def flatten-github-pages [payload: any]: nothing -> list<any> {
+    if not (is-list-value $payload) {
+        return []
+    }
+
+    $payload | flatten
+}
+
+def github-key-list [endpoint: string]: nothing -> record {
+    if (which gh | is-empty) {
+        return {available: false, keys: []}
+    }
+
+    let response = (^gh api $endpoint --paginate --slurp | complete)
+    if $response.exit_code != 0 {
+        return {available: false, keys: []}
+    }
+
+    let payload = (try {
+        $response.stdout | from json
+    } catch {
+        null
+    })
+    if $payload == null {
+        return {available: false, keys: []}
+    }
+
+    {
+        available: true
+        keys: (flatten-github-pages $payload)
+    }
+}
+
+def github-key-matches [entry: record, expected: record]: nothing -> bool {
+    let remote_key = (try {
+        $entry.key
+    } catch {
+        ""
+    })
+    let remote_text = ($remote_key | default "" | str trim)
+    if ($remote_text == $expected.key_data) {
+        return true
+    }
+
+    let fields = ($remote_text | split row " " | where {|item| not ($item | is-empty)})
+    if ($fields | length) < 2 {
+        false
+    } else {
+        ($fields | get 0) == $expected.algorithm and ($fields | get 1) == $expected.key_data
+    }
+}
+
+def registration-prompt [public_file: string, key_type: string, title: string] {
+    let quoted_file = (shell-quote $public_file)
+    let quoted_title = (shell-quote $title)
+    print "この公開鍵をGitHubへ登録してください。"
+    print "秘密鍵はSecure Enclave内にあり、取得・コピーしてはいけません。"
+    print $"gh ssh-key add ($quoted_file) --type ($key_type) --title ($quoted_title)"
+}
+
+def register-github-key [public_file: string, public_key: record, key_type: string, title: string]: nothing -> string {
+    let endpoint = (github-endpoint $key_type)
+    let result = (github-key-list $endpoint)
+    if not $result.available {
+        registration-prompt $public_file $key_type $title
+        return "prompted"
+    }
+
+    let exists = ($result.keys | any {|entry|
+        github-key-matches $entry $public_key
+    })
+    if $exists {
+        print $"GitHub already has this ($key_type) key; skipped."
+        return "skipped"
+    }
+
+    let response = (^gh ssh-key add $public_file --type $key_type --title $title | complete)
+    if $response.exit_code != 0 {
+        registration-prompt $public_file $key_type $title
+        return "prompted"
+    }
+
+    print $"Registered the public key as a GitHub ($key_type) key."
+    "added"
+}
+
+def require-github-type [key_type: string] {
+    if ($key_type != "signing" and $key_type != "authentication" and $key_type != "both") {
+        error make {msg: "type must be signing, authentication, or both"}
+    }
+}
+
+def "main github add" [
+    --type: string = "both"
+    --title: string = $default_label
+    --key-file: string = $default_key_file
+    --prompt-only
+] {
+    require-github-type $type
+    let public_state = (key-state $key_file)
+    let public_key = (read-public-key $key_file)
+    let key_types = if $type == "both" {
+        ["signing", "authentication"]
+    } else {
+        [$type]
+    }
+
+    $key_types | each {|key_type|
+        if $prompt_only {
+            registration-prompt $public_state.public_file $key_type $title
+            "prompted"
+        } else {
+            register-github-key $public_state.public_file $public_key $key_type $title
+        }
+    } | ignore
+}
+
 def "main doctor" [
     --key-file: string = $default_key_file
 ] {
