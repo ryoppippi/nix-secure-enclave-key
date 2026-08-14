@@ -1,4 +1,5 @@
-#!/usr/bin/env nu
+#!/usr/bin/env nix
+#! nix shell --inputs-from . nixpkgs#nushell --command nu
 
 def require [condition: bool, message: string] {
     if not $condition {
@@ -27,7 +28,7 @@ def main [root: string] {
         "flake.nix"
         "nix/enclave-key.nu"
         "nix/enclave-key-git-sign.nu"
-        "nix/package.nix"
+        "package.nix"
         "nix/darwin-module.nix"
         "nix/home-manager-module.nix"
         "tests/fixtures-public-key.pub"
@@ -42,7 +43,7 @@ def main [root: string] {
     let cli = (source-file $root "nix/enclave-key.nu")
     let signer = (source-file $root "nix/enclave-key-git-sign.nu")
     let flake = (source-file $root "flake.nix")
-    let package = (source-file $root "nix/package.nix")
+    let package = (source-file $root "package.nix")
     let home_module = (source-file $root "nix/home-manager-module.nix")
 
     [

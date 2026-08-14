@@ -1,69 +1,31 @@
 {
   description = "Secure Enclave-backed SSH authentication and Git SSH signing for macOS";
 
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+  };
 
   outputs =
-    { self, nixpkgs }:
-    let
+    inputs@{ self, flake-parts, ... }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "aarch64-darwin"
-        "aarch64-linux"
-        "x86_64-linux"
       ];
 
-      forAllSystems = nixpkgs.lib.genAttrs systems;
-
-      packageFor =
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-        in
-        pkgs.callPackage ./nix/package.nix { };
-    in
-    {
-      packages = forAllSystems (system: {
-        default = packageFor system;
-      });
-
-      overlays.default = final: _prev: {
-        enclave-key = final.callPackage ./nix/package.nix { };
-      };
-
-      darwinModules.default = import ./nix/darwin-module.nix { inherit self; };
-      homeManagerModules.default = import ./nix/home-manager-module.nix { inherit self; };
-
-      formatter = forAllSystems (system: (import nixpkgs { inherit system; }).nixfmt-tree);
-
-      checks = forAllSystems (
-        system:
-        let
-          pkgs = import nixpkgs { inherit system; };
-        in
+      perSystem =
+        { pkgs, ... }:
         {
-          static =
-            pkgs.runCommand "enclave-key-static-check"
-              {
-                nativeBuildInputs = [ pkgs.nushell ];
-              }
-              ''
-                ${pkgs.nushell}/bin/nu --no-config-file ${./tests/check.nu} ${./.}
-                touch "$out"
-              '';
+          packages.default = pkgs.callPackage ./package.nix { };
+        };
 
-          nu-format =
-            pkgs.runCommand "enclave-key-nu-format-check"
-              {
-                nativeBuildInputs = [ pkgs.nufmt ];
-              }
-              ''
-                nufmt --dry-run \
-                  ${./nix/enclave-key.nu} \
-                  ${./nix/enclave-key-git-sign.nu} \
-                  ${./tests/check.nu}
-                touch "$out"
-              '';
-        }
-      );
+      flake = {
+        overlays.default = final: _prev: {
+          enclave-key = final.callPackage ./package.nix { };
+        };
+
+        darwinModules.default = import ./nix/darwin-module.nix { inherit self; };
+        homeManagerModules.default = import ./nix/home-manager-module.nix { inherit self; };
+      };
     };
 }
