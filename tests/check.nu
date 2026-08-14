@@ -26,9 +26,12 @@ def check-nu-source [path: string] {
 def main [root: string] {
     let required = [
         "flake.nix"
+        ".tagpr"
         "src/nix-secure-enclave-key.nu"
         "src/nix-secure-enclave-key-git-sign.nu"
         "package.nix"
+        ".github/tagpr-template.md"
+        ".github/workflows/release.yaml"
         "modules/darwin-module.nix"
         "modules/home-manager-module.nix"
         "tests/fixtures-public-key.pub"
@@ -43,6 +46,8 @@ def main [root: string] {
     let cli = (source-file $root "src/nix-secure-enclave-key.nu")
     let signer = (source-file $root "src/nix-secure-enclave-key-git-sign.nu")
     let flake = (source-file $root "flake.nix")
+    let tagpr = (source-file $root ".tagpr")
+    let release_workflow = (source-file $root ".github/workflows/release.yaml")
     let package = (source-file $root "package.nix")
     let home_module = (source-file $root "modules/home-manager-module.nix")
 
@@ -95,6 +100,17 @@ def main [root: string] {
         require (($package + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
     } | ignore
     require ($home_module | str contains 'matchBlocks."*"') "SSH integration must apply to all hosts"
+
+    [
+        "versionFile = -"
+        "vPrefix = true"
+        "changelog = false"
+        "release = false"
+    ] | each {|token|
+        require ($tagpr | str contains $token) $"tagpr configuration is missing: ($token)"
+    } | ignore
+    require ($release_workflow | str contains "Songmu/tagpr") "Release workflow is missing tagpr"
+    require ($release_workflow | str contains "nix run nixpkgs#bun -- x changelogithub") "Release workflow is missing changelogithub"
 
     let fixture = $root | path join "tests/fixtures-public-key"
     let prompt_result = (
