@@ -12,7 +12,7 @@ def source-file [root: string, relative: string]: nothing -> string {
 
 def require-files [root: string, paths: list<string>] {
     $paths | each {|relative|
-        let path = ($root | path join $relative)
+        let path = $root | path join $relative
         require ($path | path exists) $"required file is missing: ($relative)"
     } | ignore
 }
@@ -34,8 +34,8 @@ def main [root: string] {
     ]
     require-files $root $required
 
-    let cli_path = ($root | path join "nix/enclave-key.nu")
-    let signer_path = ($root | path join "nix/enclave-key-git-sign.nu")
+    let cli_path = $root | path join "nix/enclave-key.nu"
+    let signer_path = $root | path join "nix/enclave-key-git-sign.nu"
     check-nu-source $cli_path
     check-nu-source $signer_path
 
@@ -87,8 +87,11 @@ def main [root: string] {
         require (($package + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
     } | ignore
 
-    let fixture = ($root | path join "tests/fixtures-public-key")
-    let prompt_result = (^nu --no-config-file $cli_path github add --type both --prompt-only --key-file $fixture | complete)
+    let fixture = $root | path join "tests/fixtures-public-key"
+    let prompt_result = (
+        ^nu --no-config-file $cli_path github add --type both --prompt-only --key-file $fixture
+        | complete
+    )
     if $prompt_result.exit_code != 0 {
         error make {msg: $"GitHub prompt-only check failed: ($prompt_result.stderr)"}
     }
