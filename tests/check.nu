@@ -72,6 +72,9 @@ def main [root: string] {
         "create-ctk-csr"
         "import-ctk-certificate"
         "SecurityKeyProvider"
+        "identity-hash-for-label"
+        "public-key-fingerprint"
+        "select-generated-pair"
     ] | each {|token|
         require ($cli | str contains $token) $"CLI is missing required behavior: ($token)"
     } | ignore
