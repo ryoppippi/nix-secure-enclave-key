@@ -40,7 +40,7 @@ jobs:
         run: git diff --check HEAD^ HEAD
 
   test:
-    name: Run source tests
+    name: Check Nushell sources
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
@@ -48,7 +48,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-nix
-      - name: Run source tests
+      - name: Check Nushell sources
         run: ./tests/check.nu .
 
   flake-check:
@@ -90,7 +90,7 @@ jobs:
 
   build:
     name: Build package
-    needs: [format, whitespace, test, flake-check]
+    needs: [format, whitespace, test, flake-check, e2e]
     runs-on: macos-latest
     timeout-minutes: 20
     steps:
