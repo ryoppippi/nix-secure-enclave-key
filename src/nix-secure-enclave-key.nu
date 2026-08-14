@@ -258,18 +258,29 @@ def print-doctor-check [name: string, status: string, detail: string] {
     print $"[($status)] ($name): ($detail)"
 }
 
-def "main setup" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "nix-secure-enclave-key", --protection: string = "none"] {
+# Create the Secure Enclave identity and SSH stub if either is missing.
+def "main setup" [
+    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub path; the public key is stored at `<path>.pub`.
+    --label: string = "nix-secure-enclave-key" # CryptoTokenKit label used to find or create the identity.
+    --protection: string = "none" # `none` skips biometric protection; `bio` requests it and may require Touch ID.
+] {
     require-macos
     let result = (ensure-configuration $key_file $label $protection)
     print-setup-result $result
 }
 
-def "main identity ensure" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "nix-secure-enclave-key", --protection: string = "none"] {
+# Ensure the Secure Enclave identity and SSH stub exist without deleting either.
+def "main identity ensure" [
+    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub path; the public key is stored at `<path>.pub`.
+    --label: string = "nix-secure-enclave-key" # CryptoTokenKit label used to find or create the identity.
+    --protection: string = "none" # `none` skips biometric protection; `bio` requests it and may require Touch ID.
+] {
     require-macos
     let result = (ensure-configuration $key_file $label $protection)
     print-setup-result $result
 }
 
+# List CryptoTokenKit identities that are available to SSH.
 def "main identity list" [] {
     require-macos
     print (
@@ -277,13 +288,22 @@ def "main identity list" [] {
     )
 }
 
-def "main ssh ensure" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "nix-secure-enclave-key", --protection: string = "none"] {
+# Ensure the SSH stub for the Secure Enclave identity exists.
+def "main ssh ensure" [
+    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub path; the public key is stored at `<path>.pub`.
+    --label: string = "nix-secure-enclave-key" # CryptoTokenKit label used to find or create the identity.
+    --protection: string = "none" # `none` skips biometric protection; `bio` requests it and may require Touch ID.
+] {
     require-macos
     let result = (ensure-configuration $key_file $label $protection)
     print-setup-result $result
 }
 
-def "main pub" [--key-file: string = "~/.ssh/id_enclave_key", --copy] {
+# Print the public SSH key, optionally copying it to the macOS clipboard.
+def "main pub" [
+    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub whose matching `.pub` file should be read.
+    --copy # Copy the public key to the clipboard instead of printing it.
+] {
     require-macos
     let public_key = (read-public-key $key_file)
     if $copy {
@@ -297,7 +317,11 @@ def "main pub" [--key-file: string = "~/.ssh/id_enclave_key", --copy] {
     }
 }
 
-def "main ctk csr" [identity_hash: string, output_file: string] {
+# Create a certificate signing request for a CryptoTokenKit identity.
+def "main ctk csr" [
+    identity_hash: string # Identity hash reported by `identity list`.
+    output_file: string # File path where the certificate signing request is written.
+] {
     require-macos
     let result = (run-sc-auth [
         "create-ctk-csr"
@@ -309,7 +333,10 @@ def "main ctk csr" [identity_hash: string, output_file: string] {
     checked-output $result "sc_auth create-ctk-csr" | print
 }
 
-def "main ctk import-certificate" [certificate_file: string] {
+# Import a certificate for a CryptoTokenKit identity.
+def "main ctk import-certificate" [
+    certificate_file: string # Certificate file to import into the CryptoTokenKit identity store.
+] {
     require-macos
     let result = (run-sc-auth [
         "import-ctk-certificate"
@@ -442,11 +469,12 @@ def require-github-type [key_type: string] {
     }
 }
 
+# Register the public key with GitHub without exposing the Secure Enclave secret.
 def "main github add" [
-    --type: string = "both"
-    --title: string = "nix-secure-enclave-key"
-    --key-file: string = "~/.ssh/id_enclave_key"
-    --prompt-only
+    --type: string = "both" # GitHub key kind: `signing`, `authentication`, or `both`.
+    --title: string = "nix-secure-enclave-key" # Title to use for a newly registered GitHub key.
+    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub whose matching `.pub` file should be registered.
+    --prompt-only # Print `gh ssh-key add` commands without contacting GitHub or writing a key.
 ] {
     require-macos
     require-github-type $type
@@ -468,7 +496,10 @@ def "main github add" [
     } | ignore
 }
 
-def "main doctor" [--key-file: string = "~/.ssh/id_enclave_key"] {
+# Check macOS tools, the SSH provider, and the local SSH stub pair.
+def "main doctor" [
+    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub and its matching `.pub` file.
+] {
     require-macos
 
     let sc_auth_available = $sc_auth_path | path exists
