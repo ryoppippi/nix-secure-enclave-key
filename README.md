@@ -249,16 +249,21 @@ Set `system.primaryUser`, then configure the module in the system configuration:
 
       programs.nix-secure-enclave-key = {
         enable = true; # Install the package and configure SSH/Git integration.
-        keyFile = "~/.ssh/id_enclave_key"; # Non-secret SSH stub/reference for login and signing.
-        label = "nix-secure-enclave-key"; # CryptoTokenKit identity label.
-        protection = "none"; # "bio" requests biometric protection and may require Touch ID.
-        autoEnsure = true; # Create the identity and SSH stub/reference during activation.
-        signByDefault = true; # Sign Git commits with the Secure Enclave-backed key.
-        github = {
-          autoAdd = false; # Set true to register the public key during activation.
-          type = "both"; # Register SSH authentication, Git signing, or both.
-          # title defaults to a machine- and public-key-specific value; set it to override that title.
+        identities = {
+          git-signing = {
+            keyFile = "~/.ssh/id_enclave_key"; # Non-secret SSH stub/reference for login and signing.
+            label = "nix-secure-enclave-key"; # Reuse this existing CryptoTokenKit identity.
+            protection = "none"; # "bio" requests biometric protection and may require Touch ID.
+            autoEnsure = true; # Create the identity and SSH stub/reference during activation.
+            github = {
+              autoAdd = false; # Set true to register the public key during activation.
+              type = "both"; # Register SSH authentication, Git signing, or both.
+              # title defaults to a machine- and public-key-specific value; set it to override that title.
+            };
+          };
         };
+        signingIdentity = "git-signing"; # Select the identity used by Git SSH signing.
+        signByDefault = true; # Sign Git commits with the Secure Enclave-backed key.
       };
     })
   ];
@@ -273,11 +278,16 @@ GitHub. This means `darwin-rebuild switch` can complete the local setup and,
 optionally, both GitHub registrations without Home Manager.
 
 <details>
-<summary>Configure multiple identities declaratively</summary>
+<summary>Configure identities declaratively</summary>
 
-Use a named attribute set when Git signing and SSH login should use different
-Secure Enclave identities. Attribute names are arbitrary. If `label` is
-omitted, the module derives it as `<attribute-name>-nix-secure-enclave-key`.
+Use a named attribute set for Secure Enclave identities. This is also the
+required form when only one identity is configured. When Git signing and SSH
+login should use different identities, add another attribute. Attribute names
+are arbitrary. If `label` is omitted, the module derives it as
+`<attribute-name>-nix-secure-enclave-key`.
+The former top-level `keyFile`, `label`, `protection`, `autoEnsure`, and
+`github` options are not accepted; move them under a named identity and set
+`signingIdentity` explicitly.
 When `github.title` is omitted, the module passes the attribute name to the
 CLI so the generated GitHub title also includes the Mac name and public-key
 fingerprint.
@@ -335,16 +345,21 @@ Home Manager is optional. Import its module and use the same
 
   programs.nix-secure-enclave-key = {
     enable = true; # Install the package and configure SSH/Git integration.
-    keyFile = "~/.ssh/id_enclave_key"; # SSH stub/reference for login and Git signing; its public key is in the .pub file.
-    label = "nix-secure-enclave-key"; # CryptoTokenKit label used for idempotent ensure.
-    protection = "none"; # "none" skips biometric protection; "bio" requests it and may require Touch ID.
-    autoEnsure = true; # Create the missing identity and SSH stub/reference during user activation.
-    signByDefault = true; # Make Git SSH signing the default for commits.
-    github = {
-      autoAdd = false; # Register the public key during activation; disabled by default because this writes to GitHub.
-      type = "both"; # Register the key for SSH authentication, Git signing, or both.
-      # title defaults to a machine- and public-key-specific value; set it to override that title.
+    identities = {
+      git-signing = {
+        keyFile = "~/.ssh/id_enclave_key"; # SSH stub/reference for login and Git signing; its public key is in the .pub file.
+        label = "nix-secure-enclave-key"; # Reuse this existing CryptoTokenKit identity.
+        protection = "none"; # "none" skips biometric protection; "bio" requests it and may require Touch ID.
+        autoEnsure = true; # Create the missing identity and SSH stub/reference during user activation.
+        github = {
+          autoAdd = false; # Register the public key during activation; disabled by default because this writes to GitHub.
+          type = "both"; # Register the key for SSH authentication, Git signing, or both.
+          # title defaults to a machine- and public-key-specific value; set it to override that title.
+        };
+      };
     };
+    signingIdentity = "git-signing"; # Select the identity used by Git SSH signing.
+    signByDefault = true; # Make Git SSH signing the default for commits.
   };
 }
 ```
