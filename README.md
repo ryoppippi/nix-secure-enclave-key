@@ -19,7 +19,7 @@ Apple's SSH provider directly, so Secretive is not a runtime dependency.
 This is a Darwin-only Nix package. Linux and other platforms are unsupported;
 the project does not generate fallback SSH keys outside the Secure Enclave.
 
-## Local setup
+## Without nix-darwin
 
 Install the package with Nix, then perform the first identity creation as the
 logged-in user on the Mac:
@@ -63,7 +63,29 @@ git config --global user.signingkey ~/.ssh/id_enclave_key
 git config --global gpg.ssh.program "$(command -v nix-secure-enclave-key-git-sign)"
 ```
 
-## Nix integration
+## GitHub integration
+
+Register the same public key for one or both purposes:
+
+```text
+nix-secure-enclave-key github add --type signing
+nix-secure-enclave-key github add --type authentication
+nix-secure-enclave-key github add --type both
+```
+
+Before calling `gh ssh-key add`, the CLI compares the key algorithm and base64
+key body with the authenticated account’s existing keys. Matching keys are
+skipped regardless of their title. If `gh` is unavailable, unauthenticated, or
+cannot access the endpoint, the CLI prints a prompt containing only the public
+key path and registration command. It never asks for, prints, or copies the
+private key.
+
+Use `--prompt-only` to print those commands without contacting GitHub.
+
+## With nix-darwin
+
+Use nix-darwin and Home Manager to configure the package, SSH provider, Git SSH
+signing, and user-level identity ensure declaratively.
 
 The flake exposes `packages.<system>.default`, `darwinModules.default`,
 `homeManagerModules.default`, and `overlays.default`.
@@ -104,25 +126,6 @@ When `autoEnsure` is enabled, Home Manager invokes `nix-secure-enclave-key ident
 ensure` during user activation. It does not run GitHub API calls or
 `gh ssh-key add`.
 
-## GitHub registration
-
-Register the same public key for one or both purposes:
-
-```text
-nix-secure-enclave-key github add --type signing
-nix-secure-enclave-key github add --type authentication
-nix-secure-enclave-key github add --type both
-```
-
-Before calling `gh ssh-key add`, the CLI compares the key algorithm and base64
-key body with the authenticated account’s existing keys. Matching keys are
-skipped regardless of their title. If `gh` is unavailable, unauthenticated, or
-cannot access the endpoint, the CLI prints a prompt containing only the public
-key path and registration command. It never asks for, prints, or copies the
-private key.
-
-Use `--prompt-only` to print those commands without contacting GitHub.
-
 ## CTK certificate operations
 
 The CTK identity can also be used outside SSH:
@@ -154,22 +157,6 @@ Secretive identities automatically. Migrate deliberately:
 No Secure Enclave material belongs in a dotfiles repository. The `.pub` file
 and the SSH stub are local artifacts and should be protected with normal SSH
 file permissions.
-
-## Development checks
-
-The repository uses Nushell internally for the CLI and Git signer wrapper.
-Useful checks are:
-
-```text
-./tests/check.nu .
-cd dev && nix fmt
-cd dev && nix flake check
-nix build .#default
-git diff --check
-```
-
-Secure Enclave creation, GitHub registration, and signed commits are manual
-macOS checks. They are intentionally not part of CI or Nix activation.
 
 ## GitHub Sponsors
 
