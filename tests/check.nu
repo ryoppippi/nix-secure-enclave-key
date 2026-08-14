@@ -75,6 +75,9 @@ def main [root: string] {
         "SecurityKeyProvider"
         "identity-hash-for-label"
         "public-key-fingerprint"
+        "default-github-title"
+        "title-prefix"
+        "scutil"
         "select-generated-pair"
         "public-key-reference-for-identity"
         "ssh-add"
@@ -126,6 +129,7 @@ def main [root: string] {
         "github.autoAdd"
         "github.type"
         "github.title"
+        "title-prefix"
         "home.activation.nix-secure-enclave-key-github-add"
         "pkgs.gh"
         "default = false"
@@ -174,6 +178,35 @@ def main [root: string] {
     require ($prompt_result.stdout | str contains "gh ssh-key add") "GitHub prompt is missing the registration command"
     require ($prompt_result.stdout | str contains "--type signing") "GitHub signing prompt is missing"
     require ($prompt_result.stdout | str contains "--type authentication") "GitHub authentication prompt is missing"
+    let generated_title_line = (
+        $prompt_result.stdout
+        | lines
+        | where {|line| $line | str contains "--title "}
+        | first
+    )
+    require ($generated_title_line | str contains "nix-secure-enclave-key") "GitHub prompt is missing the generated title"
+    require (
+        not ($generated_title_line | str contains "--title 'nix-secure-enclave-key'")
+    ) "GitHub prompt still uses the static default title"
+
+    let explicit_title_result = (
+        ^nu --no-config-file $cli_path github add --type signing --prompt-only --title "custom-title" --key-file $fixture
+        | complete
+    )
+    if $explicit_title_result.exit_code != 0 {
+        error make {msg: $"GitHub explicit-title check failed: ($explicit_title_result.stderr)"}
+    }
+    require ($explicit_title_result.stdout | str contains "--title 'custom-title'") "GitHub prompt does not preserve an explicit title"
+
+    let prefixed_title_result = (
+        ^nu --no-config-file $cli_path github add --type signing --prompt-only --title-prefix "git-signing" --key-file $fixture
+        | complete
+    )
+    if $prefixed_title_result.exit_code != 0 {
+        error make {msg: $"GitHub title-prefix check failed: ($prefixed_title_result.stderr)"}
+    }
+    require ($prefixed_title_result.stdout | str contains "git-signing-") "GitHub prompt does not include the title prefix"
+    require ($prefixed_title_result.stdout | str contains "-nix-secure-enclave-key'") "GitHub prompt does not include the package title suffix"
 
     print "nix-secure-enclave-key static checks passed"
 }
