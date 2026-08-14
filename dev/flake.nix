@@ -91,7 +91,18 @@
                   system.stateVersion = 6;
                   programs.nix-secure-enclave-key = {
                     enable = true;
-                    github.autoAdd = true;
+                    identities = {
+                      git-signing = {
+                        keyFile = "~/.ssh/id_git_signing";
+                        protection = "none";
+                        github.autoAdd = true;
+                      };
+                      remote-server-x-ssh-login-key = {
+                        keyFile = "~/.ssh/id_remote_server_x";
+                        protection = "bio";
+                      };
+                    };
+                    signingIdentity = "git-signing";
                   };
                 })
               ];
