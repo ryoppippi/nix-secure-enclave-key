@@ -1,5 +1,5 @@
 {
-  description = "Development checks for enclave-key";
+  description = "Development checks for nix-secure-enclave-key";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -53,7 +53,7 @@
           };
 
           checks.static =
-            pkgs.runCommand "enclave-key-static-check"
+            pkgs.runCommand "nix-secure-enclave-key-static-check"
               {
                 nativeBuildInputs = [ pkgs.nushell ];
               }
@@ -74,7 +74,7 @@
             }).config.system.build.toplevel;
 
           checks.renovate-config =
-            pkgs.runCommand "enclave-key-renovate-config"
+            pkgs.runCommand "nix-secure-enclave-key-renovate-config"
               {
                 nativeBuildInputs = [ pkgs.renovate ];
               }

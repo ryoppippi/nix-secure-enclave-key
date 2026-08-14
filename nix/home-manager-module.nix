@@ -8,7 +8,7 @@
 }:
 
 let
-  cfg = config.programs.enclave-key;
+  cfg = config.programs.nix-secure-enclave-key;
   package = self.packages.${pkgs.system}.default;
   keyFile =
     if lib.hasPrefix "~/" cfg.keyFile then
@@ -17,8 +17,8 @@ let
       cfg.keyFile;
 in
 {
-  options.programs.enclave-key = {
-    enable = lib.mkEnableOption "enclave-key";
+  options.programs.nix-secure-enclave-key = {
+    enable = lib.mkEnableOption "nix-secure-enclave-key";
 
     keyFile = lib.mkOption {
       type = lib.types.str;
@@ -28,7 +28,7 @@ in
 
     label = lib.mkOption {
       type = lib.types.str;
-      default = "enclave-key";
+      default = "nix-secure-enclave-key";
       description = "Label used when creating the CryptoTokenKit identity.";
     };
 
@@ -70,18 +70,18 @@ in
       signing = {
         key = keyFile;
         signByDefault = cfg.signByDefault;
-        signer = "${package}/bin/enclave-key-git-sign";
+        signer = "${package}/bin/nix-secure-enclave-key-git-sign";
       };
       extraConfig = {
         "gpg.format" = "ssh";
-        "gpg.ssh.program" = "${package}/bin/enclave-key-git-sign";
+        "gpg.ssh.program" = "${package}/bin/nix-secure-enclave-key-git-sign";
         "user.signingkey" = keyFile;
       };
     };
 
-    home.activation.enclave-key-ensure = lib.mkIf cfg.autoEnsure (
+    home.activation.nix-secure-enclave-key-ensure = lib.mkIf cfg.autoEnsure (
       lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-        ${package}/bin/enclave-key identity ensure \
+        ${package}/bin/nix-secure-enclave-key identity ensure \
           --key-file ${lib.escapeShellArg keyFile} \
           --label ${lib.escapeShellArg cfg.label} \
           --protection ${lib.escapeShellArg cfg.protection}

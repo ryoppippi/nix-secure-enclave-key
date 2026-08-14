@@ -1,7 +1,7 @@
 #!/usr/bin/env nu
 
 const default_key_file = "~/.ssh/id_enclave_key"
-const default_label = "enclave-key"
+const default_label = "nix-secure-enclave-key"
 const default_protection = "none"
 const security_key_provider = "/usr/lib/ssh-keychain.dylib"
 const sc_auth_path = "/usr/sbin/sc_auth"
@@ -230,7 +230,7 @@ def parse-public-key [contents: string]: nothing -> record {
 def read-public-key [key_file: string]: nothing -> record {
     let state = (key-state $key_file)
     if not $state.public_exists {
-        error make {msg: $"public key not found: ($state.public_file); run 'enclave-key setup' first"}
+        error make {msg: $"public key not found: ($state.public_file); run 'nix-secure-enclave-key setup' first"}
     }
     parse-public-key (open --raw $state.public_file)
 }
@@ -258,47 +258,36 @@ def print-doctor-check [name: string, status: string, detail: string] {
     print $"[($status)] ($name): ($detail)"
 }
 
-def "main setup" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "enclave-key", --protection: string = "none"] {
-    if not (is-macos) {
-        print "enclave-key setup skipped: Secure Enclave operations require macOS"
-        return
-    }
+def "main setup" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "nix-secure-enclave-key", --protection: string = "none"] {
+    require-macos
     let result = (ensure-configuration $key_file $label $protection)
     print-setup-result $result
 }
 
-def "main identity ensure" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "enclave-key", --protection: string = "none"] {
-    if not (is-macos) {
-        print "enclave-key identity ensure skipped: Secure Enclave operations require macOS"
-        return
-    }
+def "main identity ensure" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "nix-secure-enclave-key", --protection: string = "none"] {
+    require-macos
     let result = (ensure-configuration $key_file $label $protection)
     print-setup-result $result
 }
 
 def "main identity list" [] {
-    if not (is-macos) {
-        print "enclave-key identity list skipped: Secure Enclave operations require macOS"
-        return
-    }
+    require-macos
     print (
         checked-output (run-sc-auth ["list-ctk-identities", "-e", "b64"]) "sc_auth list-ctk-identities"
     )
 }
 
-def "main ssh ensure" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "enclave-key", --protection: string = "none"] {
-    if not (is-macos) {
-        print "enclave-key ssh ensure skipped: Secure Enclave operations require macOS"
-        return
-    }
+def "main ssh ensure" [--key-file: string = "~/.ssh/id_enclave_key", --label: string = "nix-secure-enclave-key", --protection: string = "none"] {
+    require-macos
     let result = (ensure-configuration $key_file $label $protection)
     print-setup-result $result
 }
 
 def "main pub" [--key-file: string = "~/.ssh/id_enclave_key", --copy] {
+    require-macos
     let public_key = (read-public-key $key_file)
     if $copy {
-        if not (is-macos) or not ($pbcopy_path | path exists) {
+        if not ($pbcopy_path | path exists) {
             error make {msg: "--copy requires macOS pbcopy"}
         }
         ($public_key.line + "\n") | ^$pbcopy_path | complete | ignore
@@ -455,10 +444,11 @@ def require-github-type [key_type: string] {
 
 def "main github add" [
     --type: string = "both"
-    --title: string = "enclave-key"
+    --title: string = "nix-secure-enclave-key"
     --key-file: string = "~/.ssh/id_enclave_key"
     --prompt-only
 ] {
+    require-macos
     require-github-type $type
     let public_state = (key-state $key_file)
     let public_key = (read-public-key $key_file)
@@ -479,10 +469,7 @@ def "main github add" [
 }
 
 def "main doctor" [--key-file: string = "~/.ssh/id_enclave_key"] {
-    if not (is-macos) {
-        print "[skip] Secure Enclave: macOS is required"
-        return
-    }
+    require-macos
 
     let sc_auth_available = $sc_auth_path | path exists
     let ssh_keygen_available = $ssh_keygen_path | path exists
@@ -546,11 +533,15 @@ def "main doctor" [--key-file: string = "~/.ssh/id_enclave_key"] {
             "private and public files are present"
         )
     } else {
-        print-doctor-check "SSH stub pair" "missing" "run enclave-key setup"
+        (print-doctor-check
+            "SSH stub pair"
+            "missing"
+            "run nix-secure-enclave-key setup"
+        )
     }
 }
 
 def main [] {
-    print "Usage: enclave-key <setup|identity|ssh|pub|github|ctk|doctor>"
-    print "Run 'enclave-key <command> --help' for command details."
+    print "Usage: nix-secure-enclave-key <setup|identity|ssh|pub|github|ctk|doctor>"
+    print "Run 'nix-secure-enclave-key <command> --help' for command details."
 }

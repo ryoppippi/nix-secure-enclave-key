@@ -1,5 +1,5 @@
 {
-  description = "Secure Enclave-backed SSH authentication and Git SSH signing for macOS";
+  description = "Nix-packaged Secure Enclave-backed SSH authentication and Git SSH signing for macOS";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -21,7 +21,7 @@
 
       flake = {
         overlays.default = final: _prev: {
-          enclave-key = final.callPackage ./package.nix { };
+          nix-secure-enclave-key = final.callPackage ./package.nix { };
         };
 
         darwinModules.default = import ./nix/darwin-module.nix { inherit self; };

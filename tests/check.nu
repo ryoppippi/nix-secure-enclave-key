@@ -26,8 +26,8 @@ def check-nu-source [path: string] {
 def main [root: string] {
     let required = [
         "flake.nix"
-        "src/enclave-key.nu"
-        "src/enclave-key-git-sign.nu"
+        "src/nix-secure-enclave-key.nu"
+        "src/nix-secure-enclave-key-git-sign.nu"
         "package.nix"
         "nix/darwin-module.nix"
         "nix/home-manager-module.nix"
@@ -35,13 +35,13 @@ def main [root: string] {
     ]
     require-files $root $required
 
-    let cli_path = $root | path join "src/enclave-key.nu"
-    let signer_path = $root | path join "src/enclave-key-git-sign.nu"
+    let cli_path = $root | path join "src/nix-secure-enclave-key.nu"
+    let signer_path = $root | path join "src/nix-secure-enclave-key-git-sign.nu"
     check-nu-source $cli_path
     check-nu-source $signer_path
 
-    let cli = (source-file $root "src/enclave-key.nu")
-    let signer = (source-file $root "src/enclave-key-git-sign.nu")
+    let cli = (source-file $root "src/nix-secure-enclave-key.nu")
+    let signer = (source-file $root "src/nix-secure-enclave-key-git-sign.nu")
     let flake = (source-file $root "flake.nix")
     let package = (source-file $root "package.nix")
     let home_module = (source-file $root "nix/home-manager-module.nix")
@@ -57,6 +57,9 @@ def main [root: string] {
     } | ignore
 
     require ($signer | str contains "SSH_SK_PROVIDER") "Git signer wrapper is missing SSH_SK_PROVIDER"
+    require ($cli | str contains "Secure Enclave operations require macOS") "CLI is missing its Darwin platform guard"
+    require ($signer | str contains "requires macOS") "Git signer wrapper is missing its Darwin platform guard"
+    require (not ($cli | str contains "skipped: Secure Enclave")) "CLI must not silently skip unsupported platforms"
 
     [
         "delete-ctk-identity"
@@ -77,8 +80,8 @@ def main [root: string] {
     } | ignore
 
     [
-        "enclave-key-git-sign.nu"
-        "enclave-key-git-sign"
+        "nix-secure-enclave-key-git-sign.nu"
+        "nix-secure-enclave-key-git-sign"
         "programs.ssh"
         "SecurityKeyProvider"
         "gpg.format"
@@ -100,5 +103,5 @@ def main [root: string] {
     require ($prompt_result.stdout | str contains "--type signing") "GitHub signing prompt is missing"
     require ($prompt_result.stdout | str contains "--type authentication") "GitHub authentication prompt is missing"
 
-    print "enclave-key static checks passed"
+    print "nix-secure-enclave-key static checks passed"
 }
