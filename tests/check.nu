@@ -29,8 +29,8 @@ def main [root: string] {
         "src/nix-secure-enclave-key.nu"
         "src/nix-secure-enclave-key-git-sign.nu"
         "package.nix"
-        "nix/darwin-module.nix"
-        "nix/home-manager-module.nix"
+        "modules/darwin-module.nix"
+        "modules/home-manager-module.nix"
         "tests/fixtures-public-key.pub"
     ]
     require-files $root $required
@@ -44,7 +44,7 @@ def main [root: string] {
     let signer = (source-file $root "src/nix-secure-enclave-key-git-sign.nu")
     let flake = (source-file $root "flake.nix")
     let package = (source-file $root "package.nix")
-    let home_module = (source-file $root "nix/home-manager-module.nix")
+    let home_module = (source-file $root "modules/home-manager-module.nix")
 
     [
         "create-ctk-identity"

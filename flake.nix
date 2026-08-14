@@ -24,8 +24,8 @@
           nix-secure-enclave-key = final.callPackage ./package.nix { };
         };
 
-        darwinModules.default = import ./nix/darwin-module.nix { inherit self; };
-        homeManagerModules.default = import ./nix/home-manager-module.nix { inherit self; };
+        darwinModules.default = import ./modules/darwin-module.nix { inherit self; };
+        homeManagerModules.default = import ./modules/home-manager-module.nix { inherit self; };
       };
     };
 }
