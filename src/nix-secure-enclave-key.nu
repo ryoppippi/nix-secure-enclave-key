@@ -54,7 +54,7 @@ def list-ssh-identities []: nothing -> string {
 }
 
 def list-keychain-identities []: nothing -> string {
-    let result = (run-sc-auth ["list-ctk-identities", "-t", "sha256", "-e", "hex"])
+    let result = (run-sc-auth ["list-ctk-identities", "-t", "ssh", "-e", "hex"])
     checked-output $result "sc_auth list-ctk-identities"
 }
 
