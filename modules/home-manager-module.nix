@@ -25,9 +25,10 @@ in
 
     programs.ssh = {
       enable = lib.mkDefault true;
-      matchBlocks."*" = {
-        identityFile = [ keyFile ];
-        extraOptions.SecurityKeyProvider = securityKeyProvider;
+      enableDefaultConfig = lib.mkDefault false;
+      settings."*" = {
+        IdentityFile = [ keyFile ];
+        SecurityKeyProvider = securityKeyProvider;
       };
     };
 
