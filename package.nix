@@ -26,6 +26,7 @@ stdenvNoCC.mkDerivation {
     homepage = "https://github.com/ryoppippi/enclave-key";
     license = lib.licenses.mit;
     mainProgram = "enclave-key";
+    maintainers = [ lib.maintainers.ryoppippi ];
     platforms = lib.platforms.darwin;
   };
 }
