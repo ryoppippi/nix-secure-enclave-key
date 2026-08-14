@@ -32,15 +32,11 @@ let
     name: identity:
     let
       label = if identity.label == null then "${name}-nix-secure-enclave-key" else identity.label;
-      github-title =
-        if identity.github.title == null then "${name}-nix-secure-enclave-key" else identity.github.title;
+      title-prefix = if cfg.identities == { } then "nix-secure-enclave-key" else name;
     in
     identity
     // {
-      inherit name label;
-      github = identity.github // {
-        title = github-title;
-      };
+      inherit name label title-prefix;
       resolvedKeyFile = resolve-key-file identity.keyFile;
     }
   ) configured-identities;
@@ -63,13 +59,20 @@ let
   ) identities;
   github-add-commands = lib.concatMapStringsSep "\n" (
     identity:
+    let
+      github-title-argument =
+        if identity.github.title == null then
+          "--title-prefix ${lib.escapeShellArg identity.title-prefix}"
+        else
+          "--title ${lib.escapeShellArg identity.github.title}";
+    in
     lib.optionalString identity.github.autoAdd ''
       ${run-as-primary-user "/usr/bin/env"} \
         ${lib.escapeShellArg "PATH=${pkgs.gh}/bin:/usr/bin:/bin:/usr/sbin:/sbin"} \
         ${package}/bin/nix-secure-enclave-key github add \
           --key-file ${lib.escapeShellArg identity.resolvedKeyFile} \
           --type ${lib.escapeShellArg identity.github.type} \
-          --title ${lib.escapeShellArg identity.github.title}
+          ${github-title-argument}
     ''
   ) identities;
   ssh-identity-files = lib.concatMapStringsSep "\n" (

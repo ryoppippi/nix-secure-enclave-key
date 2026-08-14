@@ -74,7 +74,7 @@
             github.title = lib.mkOption {
               type = lib.types.nullOr lib.types.str;
               default = null;
-              description = "GitHub title for this identity when it is registered. When omitted, it is derived as <name>-nix-secure-enclave-key.";
+              description = "GitHub title for this identity when it is registered. When omitted, it is generated from the identity name, macOS machine name, and public-key fingerprint.";
             };
           };
         }
@@ -118,9 +118,9 @@
     };
 
     github.title = lib.mkOption {
-      type = lib.types.str;
-      default = "nix-secure-enclave-key";
-      description = "Title to use when registering the public key with GitHub.";
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "GitHub title for the default identity. When omitted, it is generated from the macOS machine name and public-key fingerprint.";
     };
   };
 }
