@@ -109,15 +109,12 @@ git config --global gpg.ssh.program "$(command -v nix-secure-enclave-key-git-sig
 ## SSH login
 
 The generated key is a general SSH authentication key, not a GitHub-only key.
-Add the line printed by `pub` to the remote account's
-`~/.ssh/authorized_keys`:
 
-```text
-nix-secure-enclave-key pub
-```
+<details>
+<summary>Connect to another SSH server with Touch ID</summary>
 
-For an interactive SSH-login-only key, request Touch ID protection when the
-identity is created:
+Create an identity dedicated to interactive SSH login and request biometric
+protection when it is created:
 
 ```text
 nix-secure-enclave-key setup \
@@ -127,31 +124,70 @@ nix-secure-enclave-key setup \
 nix-secure-enclave-key pub --key-file ~/.ssh/id_enclave_login
 ```
 
-`bio` asks macOS to protect this identity with biometrics and may prompt for
-Touch ID when the key is created or used. Keep `protection none` for a key that
-must be usable without an interactive prompt, such as Git signing by a coding
-agent.
-
-Then configure the local Mac's SSH client for the server:
+Add the line printed by `pub` to the remote account's
+`~/.ssh/authorized_keys`, then configure the local Mac:
 
 ```sshconfig
 Host my-server
   HostName ssh.example.com
   User your-user
   IdentityFile ~/.ssh/id_enclave_login
+  IdentitiesOnly yes
   SecurityKeyProvider /usr/lib/ssh-keychain.dylib
 ```
 
-Connect normally; the Secure Enclave-backed key is used through Apple's SSH
-provider:
+Connect normally:
 
 ```text
 ssh my-server
 ```
 
-Only the public key belongs on the server. The file named in `IdentityFile` is
-a reference stub, not the private key. The Secure Enclave private key cannot
-be viewed or exported.
+`bio` asks macOS to protect this identity with biometrics and may prompt for
+Touch ID when the key is created or used. The file named in `IdentityFile` is a
+reference stub, not the private key. Only the public key belongs on the server;
+the Secure Enclave private key cannot be viewed or exported.
+
+</details>
+
+<details>
+<summary>Use separate identities for Git signing and SSH servers</summary>
+
+Create one identity for unattended Git signing and another for an interactive
+server connection. Each identity needs its own label and SSH stub:
+
+```text
+nix-secure-enclave-key setup \
+  --key-file ~/.ssh/id_enclave_signing \
+  --label nix-secure-enclave-key-signing \
+  --protection none
+nix-secure-enclave-key setup \
+  --key-file ~/.ssh/id_server_prod \
+  --label nix-secure-enclave-key-server-prod \
+  --protection bio
+
+nix-secure-enclave-key pub --key-file ~/.ssh/id_enclave_signing
+nix-secure-enclave-key pub --key-file ~/.ssh/id_server_prod
+```
+
+Point Git at the signing stub and the SSH client at the server stub:
+
+```text
+git config --global user.signingkey ~/.ssh/id_enclave_signing
+```
+
+```sshconfig
+Host prod-server
+  HostName ssh.example.com
+  User your-user
+  IdentityFile ~/.ssh/id_server_prod
+  IdentitiesOnly yes
+  SecurityKeyProvider /usr/lib/ssh-keychain.dylib
+```
+
+Use the desired `--key-file` when registering a specific identity with GitHub.
+Create additional labels, stub paths, and `Host` blocks for other servers.
+
+</details>
 
 ## GitHub integration
 
@@ -218,9 +254,11 @@ the CLI compares the public key first and skips keys already registered with
 GitHub. This means `darwin-rebuild switch` can complete the local setup and,
 optionally, both GitHub registrations without Home Manager.
 
-Home Manager is optional. If you use standalone Home Manager instead of
-nix-darwin, import its module and use the same `programs.nix-secure-enclave-key`
-options:
+<details>
+<summary>Use standalone Home Manager instead of nix-darwin</summary>
+
+Home Manager is optional. Import its module and use the same
+`programs.nix-secure-enclave-key` options:
 
 ```nix
 {
@@ -246,7 +284,12 @@ When `autoEnsure` is enabled in the Home Manager module, the same operations
 run during user activation. GitHub registration remains skipped unless
 `github.autoAdd = true` is explicitly set.
 
+</details>
+
 ## CTK certificate operations
+
+<details>
+<summary>Show CTK certificate commands</summary>
 
 The CTK identity can also be used outside SSH:
 
@@ -258,6 +301,8 @@ nix-secure-enclave-key ctk import-certificate <certificate-file>
 
 These commands preserve the broader CryptoTokenKit identity model and do not
 assume that every identity is an SSH identity.
+
+</details>
 
 ## CLI reference
 
