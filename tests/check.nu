@@ -60,6 +60,8 @@ def main [root: string] {
     require ($cli | str contains "Secure Enclave operations require macOS") "CLI is missing its Darwin platform guard"
     require ($signer | str contains "requires macOS") "Git signer wrapper is missing its Darwin platform guard"
     require (not ($cli | str contains "skipped: Secure Enclave")) "CLI must not silently skip unsupported platforms"
+    require ($cli | str contains "skips biometric protection") "CLI is missing the non-biometric protection description"
+    require ($cli | str contains "requests it and may require Touch ID") "CLI is missing the biometric protection description"
 
     [
         "delete-ctk-identity"
@@ -87,9 +89,12 @@ def main [root: string] {
         "gpg.format"
         "gpg.ssh.program"
         "autoEnsure"
+        "none creates the identity without biometric protection"
+        "bio requests biometric protection"
     ] | each {|token|
         require (($package + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
     } | ignore
+    require ($home_module | str contains 'matchBlocks."*"') "SSH integration must apply to all hosts"
 
     let fixture = $root | path join "tests/fixtures-public-key"
     let prompt_result = (

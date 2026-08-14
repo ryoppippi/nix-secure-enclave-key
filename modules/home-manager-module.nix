@@ -10,6 +10,7 @@
 let
   cfg = config.programs.nix-secure-enclave-key;
   package = self.packages.${pkgs.system}.default;
+  securityKeyProvider = "/usr/lib/ssh-keychain.dylib";
   keyFile =
     if lib.hasPrefix "~/" cfg.keyFile then
       "${config.home.homeDirectory}/${lib.removePrefix "~/" cfg.keyFile}"
@@ -38,7 +39,7 @@ in
         "bio"
       ];
       default = "none";
-      description = "Secure Enclave protection mode: none or bio; bio may require Touch ID when the key is used.";
+      description = "Secure Enclave protection mode. none creates the identity without biometric protection; bio requests biometric protection and may require Touch ID when the identity is created or the key is used.";
     };
 
     autoEnsure = lib.mkOption {
@@ -59,9 +60,9 @@ in
 
     programs.ssh = {
       enable = lib.mkDefault true;
-      matchBlocks."github.com" = {
+      matchBlocks."*" = {
         identityFile = [ keyFile ];
-        extraOptions.SecurityKeyProvider = "/usr/lib/ssh-keychain.dylib";
+        extraOptions.SecurityKeyProvider = securityKeyProvider;
       };
     };
 
