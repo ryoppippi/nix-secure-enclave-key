@@ -53,6 +53,11 @@ def list-ssh-identities []: nothing -> string {
     checked-output $result "sc_auth list-ctk-identities"
 }
 
+def list-keychain-identities []: nothing -> string {
+    let result = (run-sc-auth ["list-ctk-identities", "-t", "sha256", "-e", "hex"])
+    checked-output $result "sc_auth list-ctk-identities"
+}
+
 def identity-lines [identities: string]: nothing -> list<string> {
     $identities
     | lines
@@ -185,7 +190,7 @@ def remove-temporary-directory [directory: string] {
     }
 }
 
-def generate-ssh-stub [key_file: string, identity_hash: string] {
+def generate-ssh-stub [key_file: string, identity_hash: string, provider_hash: string] {
     let state = (key-state $key_file)
     require-complete-key-pair $state
     if $state.private_exists {
@@ -196,7 +201,9 @@ def generate-ssh-stub [key_file: string, identity_hash: string] {
     let temporary = (temporary-directory)
     let result = (do {
         cd $temporary
-        ^$ssh_keygen_path -w $security_key_provider -K -N "" | complete
+        with-env {KEYCHAIN_CERTIFICATES: $provider_hash} {
+            ^$ssh_keygen_path -w $security_key_provider -K -N "" | complete
+        }
     })
 
     if $result.exit_code != 0 {
@@ -250,7 +257,8 @@ def ensure-configuration [key_file: string, label: string, protection: string]: 
         false
     } else {
         let identity_hash = identity-hash-for-label $identities_after_creation $label
-        generate-ssh-stub $state.key_file $identity_hash
+        let provider_hash = identity-hash-for-label (list-keychain-identities) $label
+        generate-ssh-stub $state.key_file $identity_hash $provider_hash
         true
     }
 

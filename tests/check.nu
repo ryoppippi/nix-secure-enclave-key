@@ -69,6 +69,7 @@ def main [root: string] {
     [
         "create-ctk-identity"
         "list-ctk-identities"
+        "KEYCHAIN_CERTIFICATES"
         "create-ctk-csr"
         "import-ctk-certificate"
         "SecurityKeyProvider"
