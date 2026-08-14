@@ -84,7 +84,11 @@
               '';
 
           devShells.default = pkgs.mkShellNoCC {
-            packages = [ config.treefmt.build.wrapper ];
+            packages = [
+              config.treefmt.build.wrapper
+              pkgs.nixd
+              pkgs.nushell
+            ];
           };
         };
     };
