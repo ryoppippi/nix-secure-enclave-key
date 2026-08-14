@@ -206,6 +206,13 @@ The CTK commands use positional arguments: `ctk csr` takes an identity hash
 from `identity list` and the output-file path for the CSR; `ctk
 import-certificate` takes the certificate-file path to import.
 
+## Releases
+
+Pushing to `main` creates or updates a tagpr release pull request. Merging that
+pull request creates a `v`-prefixed tag, then the release workflow runs
+`nix run nixpkgs#bun -- x changelogithub` to publish GitHub release notes. This
+project has no binary release artifacts.
+
 ## Secretive migration
 
 `nix-secure-enclave-key` does not reuse Secretive keys and does not remove
