@@ -23,7 +23,7 @@ in
     keyFile = lib.mkOption {
       type = lib.types.str;
       default = "~/.ssh/id_enclave_key";
-      description = "Path to the non-secret SSH stub and its public key.";
+      description = "Path to the non-secret SSH stub; the public key is read from the matching .pub file.";
     };
 
     label = lib.mkOption {
@@ -38,19 +38,19 @@ in
         "bio"
       ];
       default = "none";
-      description = "Secure Enclave private-key protection mode.";
+      description = "Secure Enclave protection mode: none or bio; bio may require Touch ID when the key is used.";
     };
 
     autoEnsure = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Ensure the local identity and SSH stub during user activation.";
+      description = "Ensure the local identity and SSH stub during user activation; GitHub registration is never run here.";
     };
 
     signByDefault = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Sign Git commits by default with the SSH signing key.";
+      description = "Whether Git commits should be SSH-signed by default.";
     };
   };
 
