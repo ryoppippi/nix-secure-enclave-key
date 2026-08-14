@@ -30,6 +30,20 @@ Apple's SSH provider directly, so Secretive is not a runtime dependency.
 - ❄️ **Nix first**: Use the package with nix-darwin and Home Manager
   without running Secure Enclave or GitHub operations as root during activation.
 
+## Motivation
+
+I used [Secretive](https://github.com/maxgoedjen/secretive) for a long time and
+was happy with its Secure Enclave-backed SSH workflow. The friction was its
+GUI-only control path: configuring and operating the key from shell-based
+workflows, especially coding agents, was awkward. When the Mac was asleep, a
+coding agent could not complete a signing request, which was especially
+frustrating for an otherwise declarative and automated workflow.
+
+`nix-secure-enclave-key` keeps the Secure Enclave protection while making the
+identity, SSH stub, Git signing, and GitHub registration workflows available as
+an explicit CLI and Nix configuration. Secretive remains an inspiration, not a
+runtime dependency, and this project never reuses or deletes its identities.
+
 ## Requirements
 
 - macOS for `sc_auth`, Secure Enclave operations, and Apple’s SSH provider
