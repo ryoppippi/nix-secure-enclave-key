@@ -5,6 +5,8 @@ const default_label = "nix-secure-enclave-key"
 const default_protection = "none"
 const security_key_provider = "/usr/lib/ssh-keychain.dylib"
 const sc_auth_path = "/usr/sbin/sc_auth"
+const ssh_add_path = "/usr/bin/ssh-add"
+const ssh_agent_path = "/usr/bin/ssh-agent"
 const ssh_keygen_path = "/usr/bin/ssh-keygen"
 const pbcopy_path = "/usr/bin/pbcopy"
 
@@ -107,14 +109,14 @@ def key-state [key_file: string]: nothing -> record {
     {
         key_file: $expanded
         public_file: $"($expanded).pub"
-        private_exists: ($expanded | path exists)
+        key_exists: ($expanded | path exists)
         public_exists: ($"($expanded).pub" | path exists)
     }
 }
 
 def require-complete-key-pair [state: record] {
-    if $state.private_exists != $state.public_exists {
-        error make {msg: $"incomplete SSH stub pair: ($state.key_file) and ($state.public_file) must either both exist or both be absent"}
+    if $state.key_exists != $state.public_exists {
+        error make {msg: $"incomplete SSH key/reference pair: ($state.key_file) and ($state.public_file) must either both exist or both be absent"}
     }
 }
 
@@ -171,6 +173,16 @@ def public-key-fingerprint [public_file: string]: nothing -> string {
     $fields.1
 }
 
+def public-key-fingerprint-for-line [public_key: string]: nothing -> string {
+    let result = $public_key | ^$ssh_keygen_path "-lf" "/dev/stdin" | complete
+    let output = checked-output $result "ssh-keygen -lf"
+    let fields = $output | str trim | split row " " | where {|field| not ($field | is-empty)}
+    if ($fields | length) < 2 {
+        error make {msg: "could not read the public key fingerprint from ssh-agent"}
+    }
+    $fields.1
+}
+
 def select-generated-pair [pairs: list<record>, identity_hash: string]: nothing -> record {
     let matches = ($pairs | where {|pair|
         (public-key-fingerprint $pair.public_file) == $identity_hash
@@ -184,17 +196,107 @@ def select-generated-pair [pairs: list<record>, identity_hash: string]: nothing 
     $matches.0
 }
 
+def select-agent-public-key [public_keys: string, identity_hash: string]: nothing -> string {
+    let matches = (
+        $public_keys
+        | lines
+        | where {|line| not ($line | str trim | is-empty)}
+        | where {|line| (public-key-fingerprint-for-line $line) == $identity_hash}
+    )
+    if ($matches | is-empty) {
+        error make {msg: $"ssh-agent did not return a Secure Enclave identity: ($identity_hash)"}
+    }
+    if ($matches | length) > 1 {
+        error make {msg: $"ssh-agent returned duplicate Secure Enclave identities: ($identity_hash)"}
+    }
+    $matches.0
+}
+
+def agent-variable [output: string, name: string]: nothing -> string {
+    let matches = $output | lines | where {|line| $line | str starts-with $"($name)="}
+    if ($matches | is-empty) {
+        error make {msg: $"ssh-agent did not report ($name)"}
+    }
+    let fields = (
+        $matches.0
+        | split row ";"
+        | first
+        | split row "="
+    )
+    if ($fields | length) < 2 {
+        error make {msg: $"could not parse ($name) from ssh-agent"}
+    }
+    $fields | skip 1 | str join "="
+}
+
+def start-ssh-agent []: nothing -> record {
+    let result = (^$ssh_agent_path "-s" | complete)
+    let output = checked-output $result "ssh-agent -s"
+    {
+        socket: (agent-variable $output "SSH_AUTH_SOCK")
+        pid: (agent-variable $output "SSH_AGENT_PID" | into int)
+    }
+}
+
+def stop-ssh-agent [agent: record]: nothing -> nothing {
+    with-env {
+        SSH_AUTH_SOCK: $agent.socket
+        SSH_AGENT_PID: ($agent.pid | into string)
+    } {
+        ^$ssh_agent_path "-k" | complete | ignore
+    } | ignore
+}
+
+# ssh-keygen -K cannot select one of several Apple resident identities, so use
+# a disposable agent to enumerate public keys and keep only the requested one.
+def public-key-reference-for-identity [identity_hash: string]: nothing -> string {
+    let agent = (start-ssh-agent)
+    let environment = {
+        SSH_AUTH_SOCK: $agent.socket
+        SSH_AGENT_PID: ($agent.pid | into string)
+        SSH_SK_PROVIDER: $security_key_provider
+    }
+    let add_result = (with-env $environment {
+        ^$ssh_add_path "-K" | complete
+    })
+    let list_result = (with-env $environment {
+        ^$ssh_add_path "-L" | complete
+    })
+    stop-ssh-agent $agent
+
+    if $add_result.exit_code != 0 {
+        let detail = $add_result.stderr | str trim
+        let message = if ($detail | is-empty) {
+            "ssh-add could not load Secure Enclave identities"
+        } else {
+            $"ssh-add could not load Secure Enclave identities: ($detail)"
+        }
+        error make {msg: $message}
+    }
+    let public_keys = checked-output $list_result "ssh-add -L"
+    select-agent-public-key $public_keys $identity_hash
+}
+
+def write-public-reference [state: record, public_key: string]: nothing -> nothing {
+    let parsed = (parse-public-key $public_key)
+    let contents = ($parsed.line + "\n")
+    $contents | save --force $state.key_file
+    $contents | save --force $state.public_file
+    chmod 600 $state.key_file
+    chmod 644 $state.public_file
+}
+
 def remove-temporary-directory [directory: string] {
     if ($directory | path exists) {
         rm -r $directory | ignore
     }
 }
 
-def generate-ssh-stub [key_file: string, identity_hash: string, provider_hash: string] {
+def generate-ssh-stub [key_file: string, identity_hash: string, provider_hash: string]: nothing -> string {
     let state = (key-state $key_file)
     require-complete-key-pair $state
-    if $state.private_exists {
-        return
+    if $state.key_exists {
+        return "existing"
     }
 
     ensure-parent-directory $state.key_file
@@ -206,29 +308,28 @@ def generate-ssh-stub [key_file: string, identity_hash: string, provider_hash: s
         }
     })
 
-    if $result.exit_code != 0 {
-        let detail = $result.stderr | str trim
-        remove-temporary-directory $temporary
-        let message = if ($detail | is-empty) {
-            "ssh-keygen could not download a Secure Enclave SSH stub"
-        } else {
-            $"ssh-keygen could not download a Secure Enclave SSH stub: ($detail)"
-        }
-        error make {msg: $message}
-    }
-
     let pairs = (generated-pairs $temporary)
-    if ($pairs | is-empty) {
+    let matches = ($pairs | where {|pair|
+        (public-key-fingerprint $pair.public_file) == $identity_hash
+    })
+    if ($matches | length) == 1 {
+        let pair = $matches.0
+        mv $pair.private_file $state.key_file
+        mv $pair.public_file $state.public_file
+        chmod 600 $state.key_file
+        chmod 644 $state.public_file
         remove-temporary-directory $temporary
-        error make {msg: "ssh-keygen did not return any Secure Enclave SSH stub pairs"}
+        return "private"
     }
-
-    let pair = (select-generated-pair $pairs $identity_hash)
-    mv $pair.private_file $state.key_file
-    mv $pair.public_file $state.public_file
-    chmod 600 $state.key_file
-    chmod 644 $state.public_file
+    if ($matches | length) > 1 {
+        remove-temporary-directory $temporary
+        error make {msg: $"ssh-keygen returned duplicate stubs for Secure Enclave identity: ($identity_hash)"}
+    }
     remove-temporary-directory $temporary
+
+    let public_key = (public-key-reference-for-identity $identity_hash)
+    write-public-reference $state $public_key
+    "public-reference"
 }
 
 def ensure-configuration [key_file: string, label: string, protection: string]: nothing -> record {
@@ -253,13 +354,12 @@ def ensure-configuration [key_file: string, label: string, protection: string]: 
         $identities
     }
 
-    let ssh_created = if $state.private_exists {
-        false
+    let stub_kind = if $state.key_exists {
+        "existing"
     } else {
         let identity_hash = identity-hash-for-label $identities_after_creation $label
         let provider_hash = identity-hash-for-label (list-keychain-identities) $label
         generate-ssh-stub $state.key_file $identity_hash $provider_hash
-        true
     }
 
     {
@@ -267,7 +367,8 @@ def ensure-configuration [key_file: string, label: string, protection: string]: 
         public_file: $state.public_file
         label: $label
         identity_created: $identity_created
-        ssh_created: $ssh_created
+        ssh_created: ($stub_kind != "existing")
+        stub_kind: $stub_kind
         protection: $protection
     }
 }
@@ -308,9 +409,14 @@ def print-setup-result [result: record] {
     }
 
     if $result.ssh_created {
-        print $"Created SSH stub at ($result.key_file)"
+        let kind = if $result.stub_kind == "public-reference" {
+            "SSH public-key reference"
+        } else {
+            "SSH stub"
+        }
+        print $"Created ($kind) at ($result.key_file)"
     } else {
-        print $"SSH stub already exists at ($result.key_file)"
+        print $"SSH stub/reference already exists at ($result.key_file)"
     }
 
     if $result.protection == "bio" {
@@ -323,9 +429,9 @@ def print-doctor-check [name: string, status: string, detail: string] {
     print $"[($status)] ($name): ($detail)"
 }
 
-# Create the Secure Enclave identity and SSH stub if either is missing.
+# Create the Secure Enclave identity and SSH stub/reference if either is missing.
 def "main setup" [
-    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub path; the public key is stored at `<path>.pub`.
+    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub/reference path; the public key is stored at `<path>.pub`.
     --label: string = "nix-secure-enclave-key" # CryptoTokenKit label used to find or create the identity.
     --protection: string = "none" # `none` skips biometric protection; `bio` requests it and may require Touch ID.
 ] {
@@ -334,9 +440,9 @@ def "main setup" [
     print-setup-result $result
 }
 
-# Ensure the Secure Enclave identity and SSH stub exist without deleting either.
+# Ensure the Secure Enclave identity and SSH stub/reference exist without deleting either.
 def "main identity ensure" [
-    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub path; the public key is stored at `<path>.pub`.
+    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub/reference path; the public key is stored at `<path>.pub`.
     --label: string = "nix-secure-enclave-key" # CryptoTokenKit label used to find or create the identity.
     --protection: string = "none" # `none` skips biometric protection; `bio` requests it and may require Touch ID.
 ] {
@@ -353,9 +459,9 @@ def "main identity list" [] {
     )
 }
 
-# Ensure the SSH stub for the Secure Enclave identity exists.
+# Ensure the SSH stub/reference for the Secure Enclave identity exists.
 def "main ssh ensure" [
-    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub path; the public key is stored at `<path>.pub`.
+    --key-file: string = "~/.ssh/id_enclave_key" # Non-secret SSH stub/reference path; the public key is stored at `<path>.pub`.
     --label: string = "nix-secure-enclave-key" # CryptoTokenKit label used to find or create the identity.
     --protection: string = "none" # `none` skips biometric protection; `bio` requests it and may require Touch ID.
 ] {
@@ -366,7 +472,7 @@ def "main ssh ensure" [
 
 # Print the public SSH key, optionally copying it to the macOS clipboard.
 def "main pub" [
-    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub whose matching `.pub` file should be read.
+    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub/reference whose matching `.pub` file should be read.
     --copy # Copy the public key to the clipboard instead of printing it.
 ] {
     require-macos
@@ -538,7 +644,7 @@ def require-github-type [key_type: string] {
 def "main github add" [
     --type: string = "both" # GitHub key kind: `signing`, `authentication`, or `both`.
     --title: string = "nix-secure-enclave-key" # Title to use for a newly registered GitHub key.
-    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub whose matching `.pub` file should be registered.
+    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub/reference whose matching `.pub` file should be registered.
     --prompt-only # Print `gh ssh-key add` commands without contacting GitHub or writing a key.
 ] {
     require-macos
@@ -561,9 +667,9 @@ def "main github add" [
     } | ignore
 }
 
-# Check macOS tools, the SSH provider, and the local SSH stub pair.
+# Check macOS tools, the SSH provider, and the local SSH key/reference pair.
 def "main doctor" [
-    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub and its matching `.pub` file.
+    --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub/reference and its matching `.pub` file.
 ] {
     require-macos
 
@@ -588,8 +694,8 @@ def "main doctor" [
         $security_key_provider
     )
     (print-doctor-check
-        "SSH private stub"
-        (if $state.private_exists { "ok" } else { "missing" })
+        "SSH stub/reference"
+        (if $state.key_exists { "ok" } else { "missing" })
         $state.key_file
     )
     (print-doctor-check
@@ -616,21 +722,21 @@ def "main doctor" [
         }
     }
 
-    if $state.private_exists != $state.public_exists {
+    if $state.key_exists != $state.public_exists {
         (print-doctor-check
-            "SSH stub pair"
+            "SSH key/reference pair"
             "error"
-            "private and public files are incomplete"
+            "key and public files are incomplete"
         )
-    } else if $state.private_exists {
+    } else if $state.key_exists {
         (print-doctor-check
-            "SSH stub pair"
+            "SSH key/reference pair"
             "ok"
-            "private and public files are present"
+            "key and public files are present"
         )
     } else {
         (print-doctor-check
-            "SSH stub pair"
+            "SSH key/reference pair"
             "missing"
             "run nix-secure-enclave-key setup"
         )
