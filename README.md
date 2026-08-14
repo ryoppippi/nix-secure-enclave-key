@@ -153,14 +153,22 @@ checks are:
 ```text
 nu-check --debug nix/enclave-key.nu
 nu-check --debug nix/enclave-key-git-sign.nu
-nix fmt
-nix flake check
+cd dev && nix fmt
+cd dev && nix flake check
 nix build .#default
 git diff --check
 ```
 
 Secure Enclave creation, GitHub registration, and signed commits are manual
 macOS checks. They are intentionally not part of CI or Nix activation.
+
+## GitHub Sponsors
+
+<p align="center">
+    <a href="https://github.com/sponsors/ryoppippi">
+        <img src="https://sponsors.ryoppippi.com/sponsors.png" alt="Sponsors">
+    </a>
+</p>
 
 ## References
 
