@@ -74,7 +74,12 @@
               modules = [
                 inputs.root.darwinModules.default
                 ({ ... }: {
+                  system.primaryUser = "nobody";
                   system.stateVersion = 6;
+                  programs.nix-secure-enclave-key = {
+                    enable = true;
+                    github.autoAdd = true;
+                  };
                 })
               ];
             }).config.system.build.toplevel;

@@ -33,6 +33,7 @@ def main [root: string] {
         "src/nix-secure-enclave-key.nu"
         "src/nix-secure-enclave-key-git-sign.nu"
         "package.nix"
+        "modules/options.nix"
         ".github/tagpr-template.md"
         ".github/workflows/release.yaml"
         "modules/darwin-module.nix"
@@ -53,6 +54,8 @@ def main [root: string] {
     let tagpr = (source-file $root ".tagpr")
     let release_workflow = (source-file $root ".github/workflows/release.yaml")
     let package = (source-file $root "package.nix")
+    let options_module = (source-file $root "modules/options.nix")
+    let darwin_module = (source-file $root "modules/darwin-module.nix")
     let home_module = (source-file $root "modules/home-manager-module.nix")
 
     [
@@ -107,9 +110,20 @@ def main [root: string] {
         "none creates the identity without biometric protection"
         "bio requests biometric protection"
     ] | each {|token|
-        require (($package + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
+        require (($package + $options_module + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
     } | ignore
     require ($home_module | str contains 'matchBlocks."*"') "SSH integration must apply to all hosts"
+
+    [
+        "programs.ssh.extraConfig"
+        "SecurityKeyProvider"
+        "system.requiresPrimaryUser"
+        "system.activationScripts.postActivation"
+        "/usr/bin/sudo --user="
+        "gpg.ssh.program"
+    ] | each {|token|
+        require ($darwin_module | str contains $token) $"nix-darwin integration is missing: ($token)"
+    } | ignore
     require ($dev_flake | str contains "programs =") "Development flake is missing formatter programs"
     require ($dev_flake | str contains "typos") "Development flake is missing typos"
 
