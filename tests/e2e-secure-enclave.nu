@@ -45,7 +45,7 @@ def setup-key [root: string, key_file: string, label: string]: nothing -> nothin
         "none"
     ])
     print $setup_result.stdout
-    require ($key_file | path exists) $"Secure Enclave E2E did not create an SSH stub: ($key_file)"
+    require ($key_file | path exists) $"Secure Enclave E2E did not create an SSH stub/reference: ($key_file)"
     require ($"($key_file).pub" | path exists) $"Secure Enclave E2E did not create a public key: ($key_file).pub"
 }
 
