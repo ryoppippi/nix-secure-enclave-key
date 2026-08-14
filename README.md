@@ -10,11 +10,24 @@ The project is inspired by [Secretive](https://github.com/maxgoedjen/secretive)
 and its Secure Enclave-backed SSH workflow. It talks to macOS CryptoTokenKit and
 Apple's SSH provider directly, so Secretive is not a runtime dependency.
 
+It can:
+
+- Create and idempotently manage a macOS Secure Enclave CryptoTokenKit identity
+  and its non-secret SSH stub.
+- Use that key for SSH login to any server where the public key is authorized.
+- Configure Git SSH commit signing with the same Secure Enclave-backed key.
+- Register the public key with GitHub for authentication, signing, or both,
+  while skipping keys that are already registered.
+- Create CTK certificate signing requests and import CTK certificates.
+- Provide Nix package, nix-darwin, and Home Manager integration without running
+  Secure Enclave or GitHub operations as root during system activation.
+
 ## Requirements
 
 - macOS for `sc_auth`, Secure Enclave operations, and Apple’s SSH provider
 - Nix on macOS for the packaged `nix-secure-enclave-key` binary
-- `gh` is optional; it is used for GitHub key registration when available
+- `gh` is optional and is not bundled by this package; it is used for GitHub
+  key registration when available
 
 This is a Darwin-only Nix package. Linux and other platforms are unsupported;
 the project does not generate fallback SSH keys outside the Secure Enclave.
@@ -46,15 +59,23 @@ label:      nix-secure-enclave-key
 protection: none
 ```
 
-Use `--protection bio` to request biometric protection. macOS may require
-Touch ID when that identity is used. `identity ensure` is idempotent: it
-creates a missing CTK identity and SSH stub, leaves existing pairs alone, and
-rejects an incomplete private/public stub pair. It never deletes an identity.
+`--protection none` creates the Secure Enclave identity without biometric
+protection. `--protection bio` requests biometric protection; macOS may require
+Touch ID when that identity is created or used. These values are passed to
+[`sc_auth(8)`](https://keith.github.io/xcode-man-pages/sc_auth.8.html).
+`identity ensure` is idempotent: it creates a missing CTK identity and SSH stub,
+leaves existing pairs alone, and rejects an incomplete private/public stub pair.
+It never deletes an identity.
 
-Configure SSH and Git manually if you are not using Home Manager:
+The generated SSH key is not GitHub-specific. It can authenticate to any SSH
+server where its public key is present in `authorized_keys`; GitHub registration
+is only needed when using the key with GitHub.
+
+Configure SSH authentication for all hosts and Git signing manually if you are
+not using Home Manager:
 
 ```text
-Host github.com
+Host *
   IdentityFile ~/.ssh/id_enclave_key
   SecurityKeyProvider /usr/lib/ssh-keychain.dylib
 
@@ -75,7 +96,7 @@ nix-secure-enclave-key github add --type both
 
 Before calling `gh ssh-key add`, the CLI compares the key algorithm and base64
 key body with the authenticated account’s existing keys. Matching keys are
-skipped regardless of their title. If `gh` is unavailable, unauthenticated, or
+skipped regardless of their title. If `gh` is not on PATH, unauthenticated, or
 cannot access the endpoint, the CLI prints a prompt containing only the public
 key path and registration command. It never asks for, prints, or copies the
 private key.
@@ -104,8 +125,8 @@ Add the nix-darwin module to a system configuration to install the package:
 The nix-darwin module only installs `nix-secure-enclave-key`; it does not run
 `sc_auth`, call GitHub, or require root access to a Secure Enclave identity.
 
-Home Manager configures the SSH provider, Git SSH signing, and optional
-user-level activation:
+Home Manager configures the SSH provider for all hosts, Git SSH signing, and
+optional user-level activation:
 
 ```nix
 {
@@ -113,9 +134,9 @@ user-level activation:
 
   programs.nix-secure-enclave-key = {
     enable = true; # Install the package and configure SSH/Git integration.
-    keyFile = "~/.ssh/id_enclave_key"; # Path to the SSH stub and its .pub file.
+    keyFile = "~/.ssh/id_enclave_key"; # SSH stub for login and Git signing; its public key is in the .pub file.
     label = "nix-secure-enclave-key"; # CryptoTokenKit label used for idempotent ensure.
-    protection = "none"; # Use "bio" to request Touch ID protection.
+    protection = "none"; # "none" skips biometric protection; "bio" requests it and may require Touch ID.
     autoEnsure = true; # Create the missing identity and SSH stub during user activation.
     signByDefault = true; # Make Git SSH signing the default for commits.
   };
@@ -147,14 +168,15 @@ The options below apply to the commands shown above:
 | --- | --- | --- | --- |
 | `--key-file` | Path to the SSH stub; its public key is `<path>.pub` | `~/.ssh/id_enclave_key` | `setup`, `identity ensure`, `ssh ensure`, `pub`, `github add`, `doctor` |
 | `--label` | Any non-empty CryptoTokenKit identity label | `nix-secure-enclave-key` | `setup`, `identity ensure`, `ssh ensure` |
-| `--protection` | `none` or `bio` | `none` | `setup`, `identity ensure`, `ssh ensure` |
+| `--protection` | `none`: no biometric protection; `bio`: biometric protection, which may require Touch ID | `none` | `setup`, `identity ensure`, `ssh ensure` |
 | `--copy` | Flag; no value | Off | `pub` |
 | `--type` | `signing`, `authentication`, or `both` | `both` | `github add` |
 | `--title` | Any GitHub SSH key title | `nix-secure-enclave-key` | `github add` |
 | `--prompt-only` | Flag; no GitHub API or write is performed | Off | `github add` |
 
-`bio` requests biometric protection for the Secure Enclave identity and may
-require Touch ID when the key is used. `--type` selects GitHub's signing-key
+`none` is the non-biometric mode. `bio` requests biometric protection for the
+Secure Enclave identity and may require Touch ID when the identity is created or
+the key is used. `--type` selects GitHub's signing-key
 endpoint, authentication-key endpoint, or both. Existing GitHub keys are
 matched by algorithm and key body, not by title.
 
@@ -192,6 +214,7 @@ file permissions.
 ## References
 
 - [`sc_auth(8)`](https://keith.github.io/xcode-man-pages/sc_auth.8.html)
+- [`ssh-keygen(1)`](https://man.openbsd.org/ssh-keygen)
 - [`gh ssh-key add`](https://cli.github.com/manual/gh_ssh-key_add)
 - [GitHub SSH signing key API](https://docs.github.com/en/rest/users/ssh-signing-keys)
 - [GitHub SSH key API](https://docs.github.com/en/rest/users/keys)
