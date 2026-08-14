@@ -18,34 +18,23 @@ let
       "${primaryUserHome}/${lib.removePrefix "~/" keyFile}"
     else
       keyFile;
-  legacy-identities = {
-    default = {
-      keyFile = cfg.keyFile;
-      label = cfg.label;
-      protection = cfg.protection;
-      autoEnsure = cfg.autoEnsure;
-      github = cfg.github;
-    };
-  };
-  configured-identities = if cfg.identities == { } then legacy-identities else cfg.identities;
   identities = lib.mapAttrsToList (
     name: identity:
     let
       label = if identity.label == null then "${name}-nix-secure-enclave-key" else identity.label;
-      title-prefix = if cfg.identities == { } then "nix-secure-enclave-key" else name;
+      title-prefix = name;
     in
     identity
     // {
       inherit name label title-prefix;
       resolvedKeyFile = resolve-key-file identity.keyFile;
     }
-  ) configured-identities;
-  signing-identity-name = if cfg.identities == { } then "default" else cfg.signingIdentity;
+  ) cfg.identities;
+  signing-identity-name = cfg.signingIdentity;
   signing-identity = lib.findFirst (identity: identity.name == signing-identity-name) null identities;
   has-auto-ensure = lib.any (identity: identity.autoEnsure) identities;
   has-github-auto-add = lib.any (identity: identity.github.autoAdd) identities;
-  signing-key-file =
-    if signing-identity == null then resolve-key-file cfg.keyFile else signing-identity.resolvedKeyFile;
+  signing-key-file = if signing-identity == null then "" else signing-identity.resolvedKeyFile;
   run-as-primary-user =
     command: "/usr/bin/sudo --user=${lib.escapeShellArg primaryUser} --set-home ${command}";
   ensure-commands = lib.concatMapStringsSep "\n" (
@@ -106,11 +95,15 @@ in
   config = lib.mkIf cfg.enable {
     assertions = [
       {
-        assertion = cfg.identities == { } || cfg.signingIdentity != null;
-        message = "programs.nix-secure-enclave-key.signingIdentity must be set when named identities are configured.";
+        assertion = cfg.identities != { };
+        message = "programs.nix-secure-enclave-key.identities must contain at least one identity.";
       }
       {
-        assertion = cfg.identities == { } || signing-identity != null;
+        assertion = cfg.signingIdentity != null;
+        message = "programs.nix-secure-enclave-key.signingIdentity must be set.";
+      }
+      {
+        assertion = signing-identity != null;
         message = "programs.nix-secure-enclave-key.signingIdentity must name one of the configured identities.";
       }
     ];
