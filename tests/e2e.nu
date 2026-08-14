@@ -7,29 +7,33 @@ def require [condition: bool, message: string] {
     }
 }
 
-def run-package [root: string, arguments: list<string>]: nothing -> record {
-    let result = (do {
-        cd $root
-        ^nix run ".#default" "--" ...$arguments
-    } | complete)
+def run-package [root: string, package: string, arguments: list<string>]: nothing -> record {
+    let result = (if ($package | is-empty) {
+        do {
+            cd $root
+            ^nix run ".#default" "--" ...$arguments
+        } | complete
+    } else {
+        ^$package ...$arguments | complete
+    })
     if $result.exit_code != 0 {
         error make {msg: $"nix run failed: ($result.stderr)"}
     }
     $result
 }
 
-def main [root: string] {
+def main [root: string, --package: string = ""] {
     let fixture = $root | path join "tests/fixtures-public-key"
     let expected_public_key = open --raw $"($fixture).pub" | str trim
 
-    let public_result = (run-package $root [
+    let public_result = (run-package $root $package [
         "pub"
         "--key-file"
         $fixture
     ])
     require ($public_result.stdout | str contains $expected_public_key) "Packaged pub command did not print the fixture public key"
 
-    let prompt_result = (run-package $root [
+    let prompt_result = (run-package $root $package [
         "github"
         "add"
         "--type"
@@ -42,7 +46,7 @@ def main [root: string] {
     require ($prompt_result.stdout | str contains "--type signing") "Packaged GitHub prompt is missing signing registration"
     require ($prompt_result.stdout | str contains "--type authentication") "Packaged GitHub prompt is missing authentication registration"
 
-    let doctor_result = (run-package $root [
+    let doctor_result = (run-package $root $package [
         "doctor"
         "--key-file"
         $fixture

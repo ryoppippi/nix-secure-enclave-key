@@ -135,6 +135,7 @@ def main [root: string] {
     } | ignore
     require ($dev_flake | str contains "programs =") "Development flake is missing formatter programs"
     require ($dev_flake | str contains "typos") "Development flake is missing typos"
+    require ($dev_flake | str contains "checks.packaged-e2e") "Development flake is missing the packaged E2E check"
 
     [
         "versionFile = -"

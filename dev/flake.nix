@@ -32,6 +32,9 @@
 
       perSystem =
         { config, pkgs, ... }:
+        let
+          package = inputs.root.packages.${pkgs.system}.default;
+        in
         {
           treefmt = {
             projectRoot = ./..;
@@ -65,6 +68,16 @@
               }
               ''
                 ${pkgs.nushell}/bin/nu --no-config-file ${./../tests/check.nu} ${./..}
+                touch "$out"
+              '';
+
+          checks.packaged-e2e =
+            pkgs.runCommand "nix-secure-enclave-key-packaged-e2e"
+              {
+                nativeBuildInputs = [ pkgs.nushell ];
+              }
+              ''
+                ${pkgs.nushell}/bin/nu ${./../tests/e2e.nu} ${./..} --package ${package}/bin/nix-secure-enclave-key
                 touch "$out"
               '';
 
