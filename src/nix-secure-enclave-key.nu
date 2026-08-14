@@ -9,6 +9,8 @@ const ssh_add_path = "/usr/bin/ssh-add"
 const ssh_agent_path = "/usr/bin/ssh-agent"
 const ssh_keygen_path = "/usr/bin/ssh-keygen"
 const pbcopy_path = "/usr/bin/pbcopy"
+const scutil_path = "/usr/sbin/scutil"
+const hostname_path = "/bin/hostname"
 
 def is-macos []: nothing -> bool {
     $nu.os-info.name == "macos"
@@ -181,6 +183,75 @@ def public-key-fingerprint-for-line [public_key: string]: nothing -> string {
         error make {msg: "could not read the public key fingerprint from ssh-agent"}
     }
     $fields.1
+}
+
+def normalize-title-component [value: string]: nothing -> string {
+    $value
+    | str trim
+    | str replace --all " " "-"
+    | str replace --all "/" "-"
+    | str replace --all ":" "-"
+    | str replace --all "+" "-"
+    | str replace --all "=" ""
+}
+
+def local-machine-name []: nothing -> string {
+    let scutil_name = if ($scutil_path | path exists) {
+        let result = (^$scutil_path "--get" "LocalHostName" | complete)
+        if $result.exit_code == 0 {
+            $result.stdout | str trim
+        } else {
+            ""
+        }
+    } else {
+        ""
+    }
+    let hostname = if ($hostname_path | path exists) {
+        let result = (^$hostname_path | complete)
+        if $result.exit_code == 0 {
+            $result.stdout | str trim
+        } else {
+            ""
+        }
+    } else {
+        ""
+    }
+    [$scutil_name $hostname "mac"]
+    | each {|value| normalize-title-component $value }
+    | where {|value| not ($value | is-empty)}
+    | first
+}
+
+def short-public-key-fingerprint [public_file: string]: nothing -> string {
+    let short = (
+        public-key-fingerprint $public_file
+        | str replace "SHA256:" ""
+        | split chars
+        | first 12
+        | str join ""
+    )
+    normalize-title-component $short
+}
+
+def default-github-title [public_file: string, title_prefix: string]: nothing -> string {
+    let prefix = if ($title_prefix | str trim | is-empty) {
+        $default_label
+    } else {
+        normalize-title-component $title_prefix
+    }
+    let components = [
+        $prefix
+        (local-machine-name)
+        (short-public-key-fingerprint $public_file)
+    ]
+    let components = if ($prefix | str ends-with $default_label) {
+        $components
+    } else {
+        $components ++ [$default_label]
+    }
+    $components
+    | where {|value| not ($value | is-empty)}
+    | str join "-"
 }
 
 def select-generated-pair [pairs: list<record>, identity_hash: string]: nothing -> record {
@@ -643,7 +714,8 @@ def require-github-type [key_type: string] {
 # Register the public key with GitHub without exposing the Secure Enclave secret.
 def "main github add" [
     --type: string = "both" # GitHub key kind: `signing`, `authentication`, or `both`.
-    --title: string = "nix-secure-enclave-key" # Title to use for a newly registered GitHub key.
+    --title: string = "" # Explicit title for a newly registered GitHub key; an identity-specific title is generated when omitted.
+    --title-prefix: string = "nix-secure-enclave-key" # Prefix for the generated title, usually the identity attribute name.
     --key-file: string = "~/.ssh/id_enclave_key" # Path to the SSH stub/reference whose matching `.pub` file should be registered.
     --prompt-only # Print `gh ssh-key add` commands without contacting GitHub or writing a key.
 ] {
@@ -651,6 +723,11 @@ def "main github add" [
     require-github-type $type
     let public_state = (key-state $key_file)
     let public_key = (read-public-key $key_file)
+    let resolved_title = if ($title | str trim | is-empty) {
+        default-github-title $public_state.public_file $title_prefix
+    } else {
+        $title
+    }
     let key_types = if $type == "both" {
         ["signing", "authentication"]
     } else {
@@ -659,10 +736,10 @@ def "main github add" [
 
     $key_types | each {|key_type|
         if $prompt_only {
-            registration-prompt $public_state.public_file $key_type $title
+            registration-prompt $public_state.public_file $key_type $resolved_title
             "prompted"
         } else {
-            register-github-key $public_state.public_file $public_key $key_type $title
+            register-github-key $public_state.public_file $public_key $key_type $resolved_title
         }
     } | ignore
 }
