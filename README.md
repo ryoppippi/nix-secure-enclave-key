@@ -157,35 +157,36 @@ server connection. Each identity needs its own label and SSH stub:
 
 ```text
 nix-secure-enclave-key setup \
-  --key-file ~/.ssh/id_enclave_signing \
-  --label nix-secure-enclave-key-signing \
+  --key-file ~/.ssh/id_git_signing \
+  --label git-signing-nix-secure-enclave-key \
   --protection none
 nix-secure-enclave-key setup \
-  --key-file ~/.ssh/id_server_prod \
-  --label nix-secure-enclave-key-server-prod \
+  --key-file ~/.ssh/id_remote_server_x \
+  --label remote-server-x-ssh-login-key-nix-secure-enclave-key \
   --protection bio
 
-nix-secure-enclave-key pub --key-file ~/.ssh/id_enclave_signing
-nix-secure-enclave-key pub --key-file ~/.ssh/id_server_prod
+nix-secure-enclave-key pub --key-file ~/.ssh/id_git_signing
+nix-secure-enclave-key pub --key-file ~/.ssh/id_remote_server_x
 ```
 
 Point Git at the signing stub and the SSH client at the server stub:
 
 ```text
-git config --global user.signingkey ~/.ssh/id_enclave_signing
+git config --global user.signingkey ~/.ssh/id_git_signing
 ```
 
 ```sshconfig
-Host prod-server
+Host remote-server-x
   HostName ssh.example.com
   User your-user
-  IdentityFile ~/.ssh/id_server_prod
+  IdentityFile ~/.ssh/id_remote_server_x
   IdentitiesOnly yes
   SecurityKeyProvider /usr/lib/ssh-keychain.dylib
 ```
 
 Use the desired `--key-file` when registering a specific identity with GitHub.
-Create additional labels, stub paths, and `Host` blocks for other servers.
+The names above are examples; create additional labels, stub paths, and `Host`
+blocks for other servers.
 
 </details>
 
@@ -253,6 +254,54 @@ root. `github.autoAdd` is disabled by default. When enabled, nix-darwin adds
 the CLI compares the public key first and skips keys already registered with
 GitHub. This means `darwin-rebuild switch` can complete the local setup and,
 optionally, both GitHub registrations without Home Manager.
+
+<details>
+<summary>Configure multiple identities declaratively</summary>
+
+Use a named attribute set when Git signing and SSH login should use different
+Secure Enclave identities. Attribute names are arbitrary. If `label` or
+`github.title` is omitted, the module derives it as
+`<attribute-name>-nix-secure-enclave-key`.
+
+```nix
+{
+  programs.nix-secure-enclave-key = {
+    enable = true; # Install the package and configure SSH/Git integration.
+    identities = {
+      git-signing = {
+        keyFile = "~/.ssh/id_git_signing"; # Non-secret stub used for Git signing.
+        protection = "none"; # Allow unattended signing without Touch ID.
+        # label defaults to "git-signing-nix-secure-enclave-key".
+        github.autoAdd = true; # Register this identity with GitHub during activation.
+      };
+      remote-server-x-ssh-login-key = {
+        keyFile = "~/.ssh/id_remote_server_x"; # Non-secret stub used for this SSH host.
+        protection = "bio"; # Request Touch ID protection when the key is used.
+        # label defaults to "remote-server-x-ssh-login-key-nix-secure-enclave-key".
+      };
+    };
+    signingIdentity = "git-signing"; # Select the identity used by Git SSH signing.
+    signByDefault = true; # Sign Git commits by default.
+  };
+}
+```
+
+All named identities are added to the SSH configuration. Select a particular
+server identity with a host-specific block, for example:
+
+```sshconfig
+Host remote-server-x
+  HostName ssh.example.com
+  User your-user
+  IdentityFile ~/.ssh/id_remote_server_x
+  IdentitiesOnly yes
+  SecurityKeyProvider /usr/lib/ssh-keychain.dylib
+```
+
+The same `identities` and `signingIdentity` options are available in the
+standalone Home Manager module.
+
+</details>
 
 <details>
 <summary>Use standalone Home Manager instead of nix-darwin</summary>
