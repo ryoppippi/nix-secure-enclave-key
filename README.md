@@ -6,6 +6,10 @@ private key never leaves the Secure Enclave. The repository contains only the
 Nushell CLI, Nix integration, and configuration examples; it does not contain a
 private key or an exported identity.
 
+The project is inspired by [Secretive](https://github.com/maxgoedjen/secretive)
+and its Secure Enclave-backed SSH workflow. It talks to macOS CryptoTokenKit and
+Apple's SSH provider directly, so Secretive is not a runtime dependency.
+
 ## Requirements
 
 - macOS for `sc_auth`, Secure Enclave operations, and Apple’s SSH provider
@@ -15,6 +19,14 @@ private key or an exported identity.
 All commands that create or change a Secure Enclave identity safely skip on
 non-macOS systems. `enclave-key pub` can still read an existing public key on
 any system.
+
+Nix is optional for the CLI. With Nushell 0.114 or newer, run the source files
+directly:
+
+```text
+nu src/enclave-key.nu doctor
+nu src/enclave-key.nu setup
+```
 
 ## Local setup
 
