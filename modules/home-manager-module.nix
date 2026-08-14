@@ -57,6 +57,7 @@ in
 
     home.activation.nix-secure-enclave-key-github-add = lib.mkIf cfg.github.autoAdd (
       lib.hm.dag.entryAfter (lib.optional cfg.autoEnsure "nix-secure-enclave-key-ensure") ''
+        export PATH="${pkgs.gh}/bin:$PATH"
         ${package}/bin/nix-secure-enclave-key github add \
           --key-file ${lib.escapeShellArg keyFile} \
           --type ${lib.escapeShellArg cfg.github.type} \
