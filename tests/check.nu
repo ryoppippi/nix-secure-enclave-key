@@ -39,13 +39,20 @@ def main [root: string] {
         "modules/darwin-module.nix"
         "modules/home-manager-module.nix"
         "tests/fixtures-public-key.pub"
+        "tests/e2e.nu"
+        "tests/e2e-secure-enclave.nu"
+        ".github/workflows/ci.yaml"
     ]
     require-files $root $required
 
     let cli_path = $root | path join "src/nix-secure-enclave-key.nu"
     let signer_path = $root | path join "src/nix-secure-enclave-key-git-sign.nu"
+    let e2e_path = $root | path join "tests/e2e.nu"
+    let secure_e2e_path = $root | path join "tests/e2e-secure-enclave.nu"
     check-nu-source $cli_path
     check-nu-source $signer_path
+    check-nu-source $e2e_path
+    check-nu-source $secure_e2e_path
 
     let cli = (source-file $root "src/nix-secure-enclave-key.nu")
     let signer = (source-file $root "src/nix-secure-enclave-key-git-sign.nu")
@@ -53,6 +60,7 @@ def main [root: string] {
     let dev_flake = (source-file $root "dev/flake.nix")
     let tagpr = (source-file $root ".tagpr")
     let release_workflow = (source-file $root ".github/workflows/release.yaml")
+    let ci_workflow = (source-file $root ".github/workflows/ci.yaml")
     let package = (source-file $root "package.nix")
     let options_module = (source-file $root "modules/options.nix")
     let darwin_module = (source-file $root "modules/darwin-module.nix")
@@ -127,6 +135,7 @@ def main [root: string] {
     } | ignore
     require ($dev_flake | str contains "programs =") "Development flake is missing formatter programs"
     require ($dev_flake | str contains "typos") "Development flake is missing typos"
+    require ($dev_flake | str contains "checks.packaged-e2e") "Development flake is missing the packaged E2E check"
 
     [
         "versionFile = -"
@@ -138,6 +147,8 @@ def main [root: string] {
     } | ignore
     require ($release_workflow | str contains "Songmu/tagpr") "Release workflow is missing tagpr"
     require ($release_workflow | str contains "nix run nixpkgs#bun -- x changelogithub") "Release workflow is missing changelogithub"
+    require ($ci_workflow | str contains "tests/e2e.nu") "CI workflow is missing packaged macOS E2E"
+    require ($ci_workflow | str contains "tests/e2e-secure-enclave.nu") "CI workflow is missing Secure Enclave E2E probe"
 
     let fixture = $root | path join "tests/fixtures-public-key"
     let prompt_result = (
