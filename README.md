@@ -217,6 +217,15 @@ private key.
 
 Use `--prompt-only` to print those commands without contacting GitHub.
 
+When `--title` is omitted, the CLI generates a machine-specific title from the
+identity prefix, macOS `LocalHostName`, and the first part of the public-key
+fingerprint. The default identity is titled like
+`nix-secure-enclave-key-macbook-pro-j1lHgxmxJT5g`; a named Nix identity such as
+`git-signing` is titled like
+`git-signing-macbook-pro-j1lHgxmxJT5g-nix-secure-enclave-key`. This keeps shared
+dotfiles readable when multiple Macs register different keys. Set `--title` or
+`github.title` when a fixed title is required.
+
 ## With nix-darwin
 
 The nix-darwin module is the primary integration and does not require Home
@@ -248,7 +257,7 @@ Set `system.primaryUser`, then configure the module in the system configuration:
         github = {
           autoAdd = false; # Set true to register the public key during activation.
           type = "both"; # Register SSH authentication, Git signing, or both.
-          title = "nix-secure-enclave-key"; # GitHub title for new registrations.
+          # title defaults to a machine- and public-key-specific value; set it to override that title.
         };
       };
     })
@@ -267,9 +276,11 @@ optionally, both GitHub registrations without Home Manager.
 <summary>Configure multiple identities declaratively</summary>
 
 Use a named attribute set when Git signing and SSH login should use different
-Secure Enclave identities. Attribute names are arbitrary. If `label` or
-`github.title` is omitted, the module derives it as
-`<attribute-name>-nix-secure-enclave-key`.
+Secure Enclave identities. Attribute names are arbitrary. If `label` is
+omitted, the module derives it as `<attribute-name>-nix-secure-enclave-key`.
+When `github.title` is omitted, the module passes the attribute name to the
+CLI so the generated GitHub title also includes the Mac name and public-key
+fingerprint.
 
 ```nix
 {
@@ -281,6 +292,7 @@ Secure Enclave identities. Attribute names are arbitrary. If `label` or
         protection = "none"; # Allow unattended signing without Touch ID.
         # label defaults to "git-signing-nix-secure-enclave-key".
         github.autoAdd = true; # Register this identity with GitHub during activation.
+        # github.title defaults to a machine- and public-key-specific value.
       };
       remote-server-x-ssh-login-key = {
         keyFile = "~/.ssh/id_remote_server_x"; # Non-secret stub used for this SSH host.
@@ -331,7 +343,7 @@ Home Manager is optional. Import its module and use the same
     github = {
       autoAdd = false; # Register the public key during activation; disabled by default because this writes to GitHub.
       type = "both"; # Register the key for SSH authentication, Git signing, or both.
-      title = "nix-secure-enclave-key"; # Title used for a new GitHub SSH key.
+      # title defaults to a machine- and public-key-specific value; set it to override that title.
     };
   };
 }
@@ -372,7 +384,8 @@ The options below apply to the commands shown above:
 | `--protection` | `none`: no biometric protection; `bio`: biometric protection, which may require Touch ID | `none` | `setup`, `identity ensure`, `ssh ensure` |
 | `--copy` | Flag; no value | Off | `pub` |
 | `--type` | `signing`, `authentication`, or `both` | `both` | `github add` |
-| `--title` | Any GitHub SSH key title | `nix-secure-enclave-key` | `github add` |
+| `--title` | Any GitHub SSH key title | Generated from the identity prefix, machine name, and public-key fingerprint | `github add` |
+| `--title-prefix` | Any title prefix; normally an identity attribute name | `nix-secure-enclave-key` | `github add` |
 | `--prompt-only` | Flag; no GitHub API or write is performed | Off | `github add` |
 
 `none` is the non-biometric mode. `bio` requests biometric protection for the
@@ -380,6 +393,8 @@ Secure Enclave identity and may require Touch ID when the identity is created or
 the key is used. `--type` selects GitHub's signing-key
 endpoint, authentication-key endpoint, or both. Existing GitHub keys are
 matched by algorithm and key body, not by title.
+When `--title` is omitted, `--title-prefix` controls the identity portion of
+the generated machine-specific title.
 
 The CTK commands use positional arguments: `ctk csr` takes an identity hash
 from `identity list` and the output-file path for the CSR; `ctk
