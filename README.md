@@ -48,8 +48,8 @@ runtime dependency, and this project never reuses or deletes its identities.
 
 - macOS for `sc_auth`, Secure Enclave operations, and Apple’s SSH provider
 - Nix on macOS for the packaged `nix-secure-enclave-key` binary
-- `gh` is optional and is not bundled by this package; it is used for GitHub
-  key registration when available
+- `gh` is optional for manual GitHub registration; Home Manager adds the Nix
+  package automatically when opt-in registration is enabled
 
 This is a Darwin-only Nix package. Linux and other platforms are unsupported;
 the project does not generate fallback SSH keys outside the Secure Enclave.
@@ -161,13 +161,22 @@ optional user-level activation:
     protection = "none"; # "none" skips biometric protection; "bio" requests it and may require Touch ID.
     autoEnsure = true; # Create the missing identity and SSH stub during user activation.
     signByDefault = true; # Make Git SSH signing the default for commits.
+    github = {
+      autoAdd = false; # Register the public key during activation; disabled by default because this writes to GitHub.
+      type = "both"; # Register the key for SSH authentication, Git signing, or both.
+      title = "nix-secure-enclave-key"; # Title used for a new GitHub SSH key.
+    };
   };
 }
 ```
 
 When `autoEnsure` is enabled, Home Manager invokes `nix-secure-enclave-key identity
-ensure` during user activation. It does not run GitHub API calls or
-`gh ssh-key add`.
+ensure` during user activation. GitHub registration is skipped by default. Set
+`github.autoAdd = true` to invoke `nix-secure-enclave-key github add` during the
+same user activation. When Home Manager is integrated with nix-darwin, this runs
+as part of `darwin-rebuild switch` under the logged-in user rather than root.
+The CLI remains idempotent, so already registered public keys are skipped.
+The nix-darwin module itself never performs GitHub writes as root.
 
 ## CTK certificate operations
 
