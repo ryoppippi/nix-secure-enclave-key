@@ -7,7 +7,7 @@
     keyFile = lib.mkOption {
       type = lib.types.str;
       default = "~/.ssh/id_enclave_key";
-      description = "Path to the non-secret SSH stub; the public key is read from the matching .pub file.";
+      description = "Path to the non-secret SSH stub or public-key reference; the public key is read from the matching .pub file.";
     };
 
     label = lib.mkOption {
@@ -31,7 +31,7 @@
           options = {
             keyFile = lib.mkOption {
               type = lib.types.str;
-              description = "Path to this identity's non-secret SSH stub; the public key is read from the matching .pub file.";
+              description = "Path to this identity's non-secret SSH stub or public-key reference; the public key is read from the matching .pub file.";
             };
 
             label = lib.mkOption {
@@ -52,7 +52,7 @@
             autoEnsure = lib.mkOption {
               type = lib.types.bool;
               default = true;
-              description = "Ensure this identity and SSH stub during activation.";
+              description = "Ensure this identity and SSH stub/reference during activation.";
             };
 
             github.autoAdd = lib.mkOption {
@@ -92,7 +92,7 @@
     autoEnsure = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Ensure the local identity and SSH stub during activation; GitHub registration is never run unless github.autoAdd is enabled.";
+      description = "Ensure the local identity and SSH stub/reference during activation; GitHub registration is never run unless github.autoAdd is enabled.";
     };
 
     signByDefault = lib.mkOption {

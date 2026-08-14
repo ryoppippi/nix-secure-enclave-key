@@ -18,7 +18,7 @@ Apple's SSH provider directly, so Secretive is not a runtime dependency.
 - 🍎 **macOS only**: Built on Apple CryptoTokenKit, Secure Enclave, and the
   Apple SSH provider; Linux and other platforms are unsupported.
 - 🔐 **Secure Enclave identities**: Create and idempotently manage a macOS
-  CryptoTokenKit identity and its non-secret SSH stub.
+  CryptoTokenKit identity and its non-secret SSH stub or public-key reference.
 - 🔑 **SSH login**: Use the key with any SSH server where the public key is
   authorized.
 - ✍️ **Git SSH signing**: Sign Git commits with the same Secure Enclave-backed
@@ -40,7 +40,7 @@ coding agent could not complete a signing request, which was especially
 frustrating for an otherwise declarative and automated workflow.
 
 `nix-secure-enclave-key` keeps the Secure Enclave protection while making the
-identity, SSH stub, Git signing, and GitHub registration workflows available as
+identity, SSH stub/reference, Git signing, and GitHub registration workflows available as
 an explicit CLI and Nix configuration. Secretive remains an inspiration, not a
 runtime dependency, and this project never reuses or deletes its identities.
 
@@ -85,9 +85,14 @@ protection: none
 protection. `--protection bio` requests biometric protection; macOS may require
 Touch ID when that identity is created or used. These values are passed to
 [`sc_auth(8)`](https://keith.github.io/xcode-man-pages/sc_auth.8.html).
-`identity ensure` is idempotent: it creates a missing CTK identity and SSH stub,
-leaves existing pairs alone, and rejects an incomplete private/public stub pair.
-It never deletes an identity.
+`identity ensure` is idempotent: it creates a missing CTK identity and SSH
+stub/reference, leaves existing pairs alone, and rejects an incomplete
+key/public pair. It never deletes an identity. When Apple’s resident-key
+download cannot select one identity among several, the CLI writes a public-key
+reference instead; the Secure Enclave private key is still never written to
+disk. The Git signer loads that reference through an isolated temporary
+`ssh-agent` when needed; the agent receives Secure Enclave handles and only
+exposes public keys.
 
 The generated SSH key is not GitHub-specific. It can authenticate to any SSH
 server where its public key is present in `authorized_keys`; GitHub registration
@@ -144,8 +149,8 @@ ssh my-server
 
 `bio` asks macOS to protect this identity with biometrics and may prompt for
 Touch ID when the key is created or used. The file named in `IdentityFile` is a
-reference stub, not the private key. Only the public key belongs on the server;
-the Secure Enclave private key cannot be viewed or exported.
+stub or public-key reference, not the private key. Only the public key belongs
+on the server; the Secure Enclave private key cannot be viewed or exported.
 
 </details>
 
@@ -153,7 +158,7 @@ the Secure Enclave private key cannot be viewed or exported.
 <summary>Use separate identities for Git signing and SSH servers</summary>
 
 Create one identity for unattended Git signing and another for an interactive
-server connection. Each identity needs its own label and SSH stub:
+server connection. Each identity needs its own label and SSH stub/reference:
 
 ```text
 nix-secure-enclave-key setup \
@@ -169,7 +174,8 @@ nix-secure-enclave-key pub --key-file ~/.ssh/id_git_signing
 nix-secure-enclave-key pub --key-file ~/.ssh/id_remote_server_x
 ```
 
-Point Git at the signing stub and the SSH client at the server stub:
+Point Git at the signing stub/reference and the SSH client at the server
+stub/reference:
 
 ```text
 git config --global user.signingkey ~/.ssh/id_git_signing
@@ -185,8 +191,10 @@ Host remote-server-x
 ```
 
 Use the desired `--key-file` when registering a specific identity with GitHub.
-The names above are examples; create additional labels, stub paths, and `Host`
-blocks for other servers.
+The names above are examples; create additional labels, stub/reference paths,
+and `Host` blocks for other servers. If several identities are present, the
+CLI selects the requested public key before writing the local reference, so no
+Secure Enclave private key is exported.
 
 </details>
 
@@ -232,10 +240,10 @@ Set `system.primaryUser`, then configure the module in the system configuration:
 
       programs.nix-secure-enclave-key = {
         enable = true; # Install the package and configure SSH/Git integration.
-        keyFile = "~/.ssh/id_enclave_key"; # Non-secret SSH stub for login and signing.
+        keyFile = "~/.ssh/id_enclave_key"; # Non-secret SSH stub/reference for login and signing.
         label = "nix-secure-enclave-key"; # CryptoTokenKit identity label.
         protection = "none"; # "bio" requests biometric protection and may require Touch ID.
-        autoEnsure = true; # Create the identity and SSH stub during activation.
+        autoEnsure = true; # Create the identity and SSH stub/reference during activation.
         signByDefault = true; # Sign Git commits with the Secure Enclave-backed key.
         github = {
           autoAdd = false; # Set true to register the public key during activation.
@@ -315,10 +323,10 @@ Home Manager is optional. Import its module and use the same
 
   programs.nix-secure-enclave-key = {
     enable = true; # Install the package and configure SSH/Git integration.
-    keyFile = "~/.ssh/id_enclave_key"; # SSH stub for login and Git signing; its public key is in the .pub file.
+    keyFile = "~/.ssh/id_enclave_key"; # SSH stub/reference for login and Git signing; its public key is in the .pub file.
     label = "nix-secure-enclave-key"; # CryptoTokenKit label used for idempotent ensure.
     protection = "none"; # "none" skips biometric protection; "bio" requests it and may require Touch ID.
-    autoEnsure = true; # Create the missing identity and SSH stub during user activation.
+    autoEnsure = true; # Create the missing identity and SSH stub/reference during user activation.
     signByDefault = true; # Make Git SSH signing the default for commits.
     github = {
       autoAdd = false; # Register the public key during activation; disabled by default because this writes to GitHub.
@@ -359,7 +367,7 @@ The options below apply to the commands shown above:
 
 | Argument | Accepted values | Default | Applies to |
 | --- | --- | --- | --- |
-| `--key-file` | Path to the SSH stub; its public key is `<path>.pub` | `~/.ssh/id_enclave_key` | `setup`, `identity ensure`, `ssh ensure`, `pub`, `github add`, `doctor` |
+| `--key-file` | Path to the SSH stub or public-key reference; its public key is `<path>.pub` | `~/.ssh/id_enclave_key` | `setup`, `identity ensure`, `ssh ensure`, `pub`, `github add`, `doctor` |
 | `--label` | Any non-empty CryptoTokenKit identity label | `nix-secure-enclave-key` | `setup`, `identity ensure`, `ssh ensure` |
 | `--protection` | `none`: no biometric protection; `bio`: biometric protection, which may require Touch ID | `none` | `setup`, `identity ensure`, `ssh ensure` |
 | `--copy` | Flag; no value | Off | `pub` |
@@ -393,8 +401,8 @@ Secretive identities automatically. Migrate deliberately:
    using Secretive itself or an explicit user action.
 
 No Secure Enclave material belongs in a dotfiles repository. The `.pub` file
-and the SSH stub are local artifacts and should be protected with normal SSH
-file permissions.
+and the SSH stub/reference are local artifacts and should be protected with
+normal SSH file permissions.
 
 ## GitHub Sponsors
 
