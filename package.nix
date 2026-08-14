@@ -12,10 +12,10 @@ stdenvNoCC.mkDerivation {
 
   installPhase = ''
     runHook preInstall
-    install -Dm755 ${./nix/enclave-key.nu} "$out/bin/enclave-key"
+    install -Dm755 ${./src/enclave-key.nu} "$out/bin/enclave-key"
     substituteInPlace "$out/bin/enclave-key" \
       --replace-fail '#!/usr/bin/env nu' '#!${nushell}/bin/nu'
-    install -Dm755 ${./nix/enclave-key-git-sign.nu} "$out/bin/enclave-key-git-sign"
+    install -Dm755 ${./src/enclave-key-git-sign.nu} "$out/bin/enclave-key-git-sign"
     substituteInPlace "$out/bin/enclave-key-git-sign" \
       --replace-fail '#!/usr/bin/env nu' '#!${nushell}/bin/nu'
     runHook postInstall

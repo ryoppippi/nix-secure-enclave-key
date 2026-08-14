@@ -26,8 +26,8 @@ def check-nu-source [path: string] {
 def main [root: string] {
     let required = [
         "flake.nix"
-        "nix/enclave-key.nu"
-        "nix/enclave-key-git-sign.nu"
+        "src/enclave-key.nu"
+        "src/enclave-key-git-sign.nu"
         "package.nix"
         "nix/darwin-module.nix"
         "nix/home-manager-module.nix"
@@ -35,13 +35,13 @@ def main [root: string] {
     ]
     require-files $root $required
 
-    let cli_path = $root | path join "nix/enclave-key.nu"
-    let signer_path = $root | path join "nix/enclave-key-git-sign.nu"
+    let cli_path = $root | path join "src/enclave-key.nu"
+    let signer_path = $root | path join "src/enclave-key-git-sign.nu"
     check-nu-source $cli_path
     check-nu-source $signer_path
 
-    let cli = (source-file $root "nix/enclave-key.nu")
-    let signer = (source-file $root "nix/enclave-key-git-sign.nu")
+    let cli = (source-file $root "src/enclave-key.nu")
+    let signer = (source-file $root "src/enclave-key-git-sign.nu")
     let flake = (source-file $root "flake.nix")
     let package = (source-file $root "package.nix")
     let home_module = (source-file $root "nix/home-manager-module.nix")

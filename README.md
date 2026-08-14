@@ -151,8 +151,8 @@ The repository uses Nushell for both the CLI and Git signer wrapper. Useful
 checks are:
 
 ```text
-nu-check --debug nix/enclave-key.nu
-nu-check --debug nix/enclave-key-git-sign.nu
+nu-check --debug src/enclave-key.nu
+nu-check --debug src/enclave-key-git-sign.nu
 cd dev && nix fmt
 cd dev && nix flake check
 nix build .#default
