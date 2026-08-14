@@ -51,29 +51,6 @@ Touch ID when that identity is used. `identity ensure` is idempotent: it
 creates a missing CTK identity and SSH stub, leaves existing pairs alone, and
 rejects an incomplete private/public stub pair. It never deletes an identity.
 
-### CLI arguments
-
-The options below apply to the commands shown in the usage examples:
-
-| Argument | Accepted values | Default | Applies to |
-| --- | --- | --- | --- |
-| `--key-file` | Path to the SSH stub; its public key is `<path>.pub` | `~/.ssh/id_enclave_key` | `setup`, `identity ensure`, `ssh ensure`, `pub`, `github add`, `doctor` |
-| `--label` | Any non-empty CryptoTokenKit identity label | `nix-secure-enclave-key` | `setup`, `identity ensure`, `ssh ensure` |
-| `--protection` | `none` or `bio` | `none` | `setup`, `identity ensure`, `ssh ensure` |
-| `--copy` | Flag; no value | Off | `pub` |
-| `--type` | `signing`, `authentication`, or `both` | `both` | `github add` |
-| `--title` | Any GitHub SSH key title | `nix-secure-enclave-key` | `github add` |
-| `--prompt-only` | Flag; no GitHub API or write is performed | Off | `github add` |
-
-`bio` requests biometric protection for the Secure Enclave identity and may
-require Touch ID when the key is used. `--type` selects GitHub's signing-key
-endpoint, authentication-key endpoint, or both. Existing GitHub keys are
-matched by algorithm and key body, not by title.
-
-The CTK commands use positional arguments: `ctk csr` takes an identity hash
-from `identity list` and the output-file path for the CSR; `ctk
-import-certificate` takes the certificate-file path to import.
-
 Configure SSH and Git manually if you are not using Home Manager:
 
 ```text
@@ -135,12 +112,12 @@ user-level activation:
   imports = [ inputs.nix-secure-enclave-key.homeManagerModules.default ];
 
   programs.nix-secure-enclave-key = {
-    enable = true;
-    keyFile = "~/.ssh/id_enclave_key";
-    label = "nix-secure-enclave-key";
-    protection = "none";
-    autoEnsure = true;
-    signByDefault = true;
+    enable = true; # Install the package and configure SSH/Git integration.
+    keyFile = "~/.ssh/id_enclave_key"; # Path to the SSH stub and its .pub file.
+    label = "nix-secure-enclave-key"; # CryptoTokenKit label used for idempotent ensure.
+    protection = "none"; # Use "bio" to request Touch ID protection.
+    autoEnsure = true; # Create the missing identity and SSH stub during user activation.
+    signByDefault = true; # Make Git SSH signing the default for commits.
   };
 }
 ```
@@ -161,6 +138,29 @@ nix-secure-enclave-key ctk import-certificate <certificate-file>
 
 These commands preserve the broader CryptoTokenKit identity model and do not
 assume that every identity is an SSH identity.
+
+## CLI reference
+
+The options below apply to the commands shown above:
+
+| Argument | Accepted values | Default | Applies to |
+| --- | --- | --- | --- |
+| `--key-file` | Path to the SSH stub; its public key is `<path>.pub` | `~/.ssh/id_enclave_key` | `setup`, `identity ensure`, `ssh ensure`, `pub`, `github add`, `doctor` |
+| `--label` | Any non-empty CryptoTokenKit identity label | `nix-secure-enclave-key` | `setup`, `identity ensure`, `ssh ensure` |
+| `--protection` | `none` or `bio` | `none` | `setup`, `identity ensure`, `ssh ensure` |
+| `--copy` | Flag; no value | Off | `pub` |
+| `--type` | `signing`, `authentication`, or `both` | `both` | `github add` |
+| `--title` | Any GitHub SSH key title | `nix-secure-enclave-key` | `github add` |
+| `--prompt-only` | Flag; no GitHub API or write is performed | Off | `github add` |
+
+`bio` requests biometric protection for the Secure Enclave identity and may
+require Touch ID when the key is used. `--type` selects GitHub's signing-key
+endpoint, authentication-key endpoint, or both. Existing GitHub keys are
+matched by algorithm and key body, not by title.
+
+The CTK commands use positional arguments: `ctk csr` takes an identity hash
+from `identity list` and the output-file path for the CSR; `ctk
+import-certificate` takes the certificate-file path to import.
 
 ## Secretive migration
 
