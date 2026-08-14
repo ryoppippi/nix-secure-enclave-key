@@ -50,6 +50,19 @@
                 ${pkgs.nushell}/bin/nu --no-config-file ${./tests/check.nu} ${./.}
                 touch "$out"
               '';
+
+          nu-format =
+            pkgs.runCommand "enclave-key-nu-format-check"
+              {
+                nativeBuildInputs = [ pkgs.nufmt ];
+              }
+              ''
+                nufmt --dry-run \
+                  ${./nix/enclave-key.nu} \
+                  ${./nix/enclave-key-git-sign.nu} \
+                  ${./tests/check.nu}
+                touch "$out"
+              '';
         }
       );
     };
