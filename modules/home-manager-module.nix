@@ -38,10 +38,10 @@ in
         signByDefault = cfg.signByDefault;
         signer = "${package}/bin/nix-secure-enclave-key-git-sign";
       };
-      extraConfig = {
-        "gpg.format" = "ssh";
-        "gpg.ssh.program" = "${package}/bin/nix-secure-enclave-key-git-sign";
-        "user.signingkey" = keyFile;
+      settings = {
+        gpg.format = "ssh";
+        gpg.ssh.program = "${package}/bin/nix-secure-enclave-key-git-sign";
+        user.signingkey = keyFile;
       };
     };
 
