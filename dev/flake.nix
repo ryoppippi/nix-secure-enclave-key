@@ -73,6 +73,16 @@
               ];
             }).config.system.build.toplevel;
 
+          checks.renovate-config =
+            pkgs.runCommand "enclave-key-renovate-config"
+              {
+                nativeBuildInputs = [ pkgs.renovate ];
+              }
+              ''
+                renovate-config-validator --strict ${./../.github/renovate.json5}
+                touch "$out"
+              '';
+
           devShells.default = pkgs.mkShellNoCC {
             packages = [ config.treefmt.build.wrapper ];
           };
