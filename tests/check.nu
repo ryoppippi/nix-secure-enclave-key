@@ -76,12 +76,17 @@ def main [root: string] {
         "identity-hash-for-label"
         "public-key-fingerprint"
         "select-generated-pair"
+        "public-key-reference-for-identity"
+        "ssh-add"
+        "ssh-agent"
     ] | each {|token|
         require ($cli | str contains $token) $"CLI is missing required behavior: ($token)"
     } | ignore
 
     require ($signer | str contains "SSH_SK_PROVIDER") "Git signer wrapper is missing SSH_SK_PROVIDER"
     require ($signer | str contains "def --wrapped main") "Git signer wrapper must forward Git's short options"
+    require ($signer | str contains "public-reference-key-file") "Git signer wrapper must recognize public-key references"
+    require ($signer | str contains "run-with-public-reference-agent") "Git signer wrapper must load public-key references through ssh-agent"
     require ($cli | str contains "Secure Enclave operations require macOS") "CLI is missing its Darwin platform guard"
     require ($signer | str contains "requires macOS") "Git signer wrapper is missing its Darwin platform guard"
     require (not ($cli | str contains "skipped: Secure Enclave")) "CLI must not silently skip unsupported platforms"
