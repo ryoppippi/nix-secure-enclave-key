@@ -25,10 +25,17 @@ Install the package with Nix, then perform the first identity creation as the
 logged-in user on the Mac:
 
 ```text
-nix run github:ryoppippi/nix-secure-enclave-key
+nix profile install github:ryoppippi/nix-secure-enclave-key
 nix-secure-enclave-key doctor
 nix-secure-enclave-key setup
 nix-secure-enclave-key pub
+```
+
+For a one-off invocation without installing the package, pass the command to
+`nix run`:
+
+```text
+nix run github:ryoppippi/nix-secure-enclave-key -- doctor
 ```
 
 The defaults are:
