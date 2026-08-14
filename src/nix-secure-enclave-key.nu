@@ -53,8 +53,35 @@ def list-ssh-identities []: nothing -> string {
     checked-output $result "sc_auth list-ctk-identities"
 }
 
+def identity-lines [identities: string]: nothing -> list<string> {
+    $identities
+    | lines
+    | skip 1
+    | where {|line| not ($line | str trim | is-empty)}
+}
+
 def identity-has-label [identities: string, label: string]: nothing -> bool {
-    $identities | str contains $label
+    identity-lines $identities
+    | any {|line| $line | str contains $" ($label) "}
+}
+
+def identity-hash-for-label [identities: string, label: string]: nothing -> string {
+    let matches = (
+        identity-lines $identities
+        | where {|line| $line | str contains $" ($label) "}
+    )
+    if ($matches | is-empty) {
+        error make {msg: $"Secure Enclave identity not found: ($label)"}
+    }
+    if ($matches | length) > 1 {
+        error make {msg: $"multiple Secure Enclave identities matched label: ($label)"}
+    }
+
+    let fields = $matches.0 | split row " " | where {|field| not ($field | is-empty)}
+    if ($fields | length) < 2 {
+        error make {msg: $"could not read the public key hash for identity: ($label)"}
+    }
+    $fields.1
 }
 
 def create-identity [label: string, protection: string] {
@@ -129,13 +156,36 @@ def generated-pairs [directory: string]: nothing -> list<record> {
     } | where {|pair| $pair != null}
 }
 
+def public-key-fingerprint [public_file: string]: nothing -> string {
+    let result = (^$ssh_keygen_path "-lf" $public_file | complete)
+    let output = checked-output $result "ssh-keygen -lf"
+    let fields = $output | str trim | split row " " | where {|field| not ($field | is-empty)}
+    if ($fields | length) < 2 {
+        error make {msg: $"could not read the public key fingerprint: ($public_file)"}
+    }
+    $fields.1
+}
+
+def select-generated-pair [pairs: list<record>, identity_hash: string]: nothing -> record {
+    let matches = ($pairs | where {|pair|
+        (public-key-fingerprint $pair.public_file) == $identity_hash
+    })
+    if ($matches | is-empty) {
+        error make {msg: $"ssh-keygen did not return a stub for Secure Enclave identity: ($identity_hash)"}
+    }
+    if ($matches | length) > 1 {
+        error make {msg: $"ssh-keygen returned duplicate stubs for Secure Enclave identity: ($identity_hash)"}
+    }
+    $matches.0
+}
+
 def remove-temporary-directory [directory: string] {
     if ($directory | path exists) {
         rm -r $directory | ignore
     }
 }
 
-def generate-ssh-stub [key_file: string] {
+def generate-ssh-stub [key_file: string, identity_hash: string] {
     let state = (key-state $key_file)
     require-complete-key-pair $state
     if $state.private_exists {
@@ -161,12 +211,12 @@ def generate-ssh-stub [key_file: string] {
     }
 
     let pairs = (generated-pairs $temporary)
-    if ($pairs | length) != 1 {
+    if ($pairs | is-empty) {
         remove-temporary-directory $temporary
-        error make {msg: $"ssh-keygen returned ($pairs | length) SSH stub pairs; exactly one was required"}
+        error make {msg: "ssh-keygen did not return any Secure Enclave SSH stub pairs"}
     }
 
-    let pair = $pairs | first
+    let pair = (select-generated-pair $pairs $identity_hash)
     mv $pair.private_file $state.key_file
     mv $pair.public_file $state.public_file
     chmod 600 $state.key_file
@@ -190,10 +240,17 @@ def ensure-configuration [key_file: string, label: string, protection: string]: 
         true
     }
 
+    let identities_after_creation = if $identity_created {
+        list-ssh-identities
+    } else {
+        $identities
+    }
+
     let ssh_created = if $state.private_exists {
         false
     } else {
-        generate-ssh-stub $state.key_file
+        let identity_hash = identity-hash-for-label $identities_after_creation $label
+        generate-ssh-stub $state.key_file $identity_hash
         true
     }
 
