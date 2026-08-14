@@ -9,7 +9,7 @@ def require-macos [] {
     }
 }
 
-def main [...arguments: string] {
+def --wrapped main [...arguments: string] {
     require-macos
     with-env {SSH_SK_PROVIDER: $security_key_provider} {
         ^$ssh_keygen_path ...$arguments

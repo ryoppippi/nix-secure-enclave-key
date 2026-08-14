@@ -69,6 +69,7 @@ def main [root: string] {
     } | ignore
 
     require ($signer | str contains "SSH_SK_PROVIDER") "Git signer wrapper is missing SSH_SK_PROVIDER"
+    require ($signer | str contains "def --wrapped main") "Git signer wrapper must forward Git's short options"
     require ($cli | str contains "Secure Enclave operations require macOS") "CLI is missing its Darwin platform guard"
     require ($signer | str contains "requires macOS") "Git signer wrapper is missing its Darwin platform guard"
     require (not ($cli | str contains "skipped: Secure Enclave")) "CLI must not silently skip unsupported platforms"
@@ -112,7 +113,7 @@ def main [root: string] {
     ] | each {|token|
         require (($package + $options_module + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
     } | ignore
-    require ($home_module | str contains 'matchBlocks."*"') "SSH integration must apply to all hosts"
+    require ($home_module | str contains 'settings."*"') "SSH integration must apply to all hosts"
 
     [
         "programs.ssh.extraConfig"
