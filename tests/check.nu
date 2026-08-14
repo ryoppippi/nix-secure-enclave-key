@@ -98,6 +98,12 @@ def main [root: string] {
         "gpg.format"
         "gpg.ssh.program"
         "autoEnsure"
+        "github.autoAdd"
+        "github.type"
+        "github.title"
+        "home.activation.nix-secure-enclave-key-github-add"
+        "pkgs.gh"
+        "default = false"
         "none creates the identity without biometric protection"
         "bio requests biometric protection"
     ] | each {|token|
