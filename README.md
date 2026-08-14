@@ -1,5 +1,8 @@
 # nix-secure-enclave-key
 
+> macOS-only, Nix-first tooling for Secure Enclave-backed SSH authentication
+> and Git SSH signing.
+
 `nix-secure-enclave-key` manages macOS CryptoTokenKit identities backed by the
 Secure Enclave and exposes them as SSH authentication and Git SSH signing keys. The
 private key never leaves the Secure Enclave. The repository contains only the
@@ -10,17 +13,22 @@ The project is inspired by [Secretive](https://github.com/maxgoedjen/secretive)
 and its Secure Enclave-backed SSH workflow. It talks to macOS CryptoTokenKit and
 Apple's SSH provider directly, so Secretive is not a runtime dependency.
 
-It can:
+## Features
 
-- Create and idempotently manage a macOS Secure Enclave CryptoTokenKit identity
-  and its non-secret SSH stub.
-- Use that key for SSH login to any server where the public key is authorized.
-- Configure Git SSH commit signing with the same Secure Enclave-backed key.
-- Register the public key with GitHub for authentication, signing, or both,
-  while skipping keys that are already registered.
-- Create CTK certificate signing requests and import CTK certificates.
-- Provide Nix package, nix-darwin, and Home Manager integration without running
-  Secure Enclave or GitHub operations as root during system activation.
+- 🍎 **macOS only**: Built on Apple CryptoTokenKit, Secure Enclave, and the
+  Apple SSH provider; Linux and other platforms are unsupported.
+- 🔐 **Secure Enclave identities**: Create and idempotently manage a macOS
+  CryptoTokenKit identity and its non-secret SSH stub.
+- 🔑 **SSH login**: Use the key with any SSH server where the public key is
+  authorized.
+- ✍️ **Git SSH signing**: Sign Git commits with the same Secure Enclave-backed
+  key.
+- 🐙 **GitHub registration**: Register the public key for authentication,
+  signing, or both, while skipping keys that are already registered.
+- 📜 **CTK certificates**: Create certificate signing requests and import CTK
+  certificates.
+- ❄️ **Nix first**: Use the package with nix-darwin and Home Manager
+  without running Secure Enclave or GitHub operations as root during activation.
 
 ## Requirements
 
