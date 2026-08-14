@@ -1,6 +1,4 @@
-# Agent notes
-
-## Release automation
+# Release automation
 
 - Pushing to `main` creates or updates the tagpr release pull request.
 - `.tagpr` is tag-only: it uses `v`-prefixed SemVer tags and does not update a

@@ -27,7 +27,7 @@ def main [root: string] {
     let required = [
         "flake.nix"
         "dev/flake.nix"
-        "AGENTS.md"
+        ".agents/release.md"
         "typos.toml"
         ".tagpr"
         "src/nix-secure-enclave-key.nu"
