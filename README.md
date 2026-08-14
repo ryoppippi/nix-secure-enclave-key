@@ -106,6 +106,53 @@ git config --global user.signingkey ~/.ssh/id_enclave_key
 git config --global gpg.ssh.program "$(command -v nix-secure-enclave-key-git-sign)"
 ```
 
+## SSH login
+
+The generated key is a general SSH authentication key, not a GitHub-only key.
+Add the line printed by `pub` to the remote account's
+`~/.ssh/authorized_keys`:
+
+```text
+nix-secure-enclave-key pub
+```
+
+For an interactive SSH-login-only key, request Touch ID protection when the
+identity is created:
+
+```text
+nix-secure-enclave-key setup \
+  --key-file ~/.ssh/id_enclave_login \
+  --label nix-secure-enclave-key-login \
+  --protection bio
+nix-secure-enclave-key pub --key-file ~/.ssh/id_enclave_login
+```
+
+`bio` asks macOS to protect this identity with biometrics and may prompt for
+Touch ID when the key is created or used. Keep `protection none` for a key that
+must be usable without an interactive prompt, such as Git signing by a coding
+agent.
+
+Then configure the local Mac's SSH client for the server:
+
+```sshconfig
+Host my-server
+  HostName ssh.example.com
+  User your-user
+  IdentityFile ~/.ssh/id_enclave_login
+  SecurityKeyProvider /usr/lib/ssh-keychain.dylib
+```
+
+Connect normally; the Secure Enclave-backed key is used through Apple's SSH
+provider:
+
+```text
+ssh my-server
+```
+
+Only the public key belongs on the server. The file named in `IdentityFile` is
+a reference stub, not the private key. The Secure Enclave private key cannot
+be viewed or exported.
+
 ## GitHub integration
 
 Register the same public key for one or both purposes:
