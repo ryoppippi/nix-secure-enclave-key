@@ -36,7 +36,13 @@
           treefmt = {
             projectRoot = ./..;
             projectRootFile = "flake.nix";
-            programs.nixfmt.enable = true;
+            programs = {
+              nixfmt.enable = true;
+              typos = {
+                enable = true;
+                configFile = "${./../typos.toml}";
+              };
+            };
             settings.formatter = {
               actionlint = {
                 command = pkgs.lib.getExe pkgs.actionlint;
@@ -88,6 +94,7 @@
               config.treefmt.build.wrapper
               pkgs.nixd
               pkgs.nushell
+              pkgs.typos
             ];
           };
         };

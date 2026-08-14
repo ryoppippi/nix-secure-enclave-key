@@ -26,6 +26,9 @@ def check-nu-source [path: string] {
 def main [root: string] {
     let required = [
         "flake.nix"
+        "dev/flake.nix"
+        "AGENTS.md"
+        "typos.toml"
         ".tagpr"
         "src/nix-secure-enclave-key.nu"
         "src/nix-secure-enclave-key-git-sign.nu"
@@ -46,6 +49,7 @@ def main [root: string] {
     let cli = (source-file $root "src/nix-secure-enclave-key.nu")
     let signer = (source-file $root "src/nix-secure-enclave-key-git-sign.nu")
     let flake = (source-file $root "flake.nix")
+    let dev_flake = (source-file $root "dev/flake.nix")
     let tagpr = (source-file $root ".tagpr")
     let release_workflow = (source-file $root ".github/workflows/release.yaml")
     let package = (source-file $root "package.nix")
@@ -58,7 +62,7 @@ def main [root: string] {
         "import-ctk-certificate"
         "SecurityKeyProvider"
     ] | each {|token|
-        require ($cli | str contains $token) $"CLI is missing required behaviour: ($token)"
+        require ($cli | str contains $token) $"CLI is missing required behavior: ($token)"
     } | ignore
 
     require ($signer | str contains "SSH_SK_PROVIDER") "Git signer wrapper is missing SSH_SK_PROVIDER"
@@ -100,6 +104,8 @@ def main [root: string] {
         require (($package + $home_module) | str contains $token) $"Nix integration is missing: ($token)"
     } | ignore
     require ($home_module | str contains 'matchBlocks."*"') "SSH integration must apply to all hosts"
+    require ($dev_flake | str contains "programs =") "Development flake is missing formatter programs"
+    require ($dev_flake | str contains "typos") "Development flake is missing typos"
 
     [
         "versionFile = -"
