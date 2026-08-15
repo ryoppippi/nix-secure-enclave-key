@@ -217,7 +217,8 @@ private key.
 
 Use `--prompt-only` to print those commands without contacting GitHub.
 
-### Authorise automatic registration
+<details>
+<summary>Configure automatic GitHub key registration</summary>
 
 When `github.autoAdd = true`, `gh` must be authenticated with permission to
 read and add SSH authentication and signing keys. Refresh the GitHub CLI
@@ -232,6 +233,8 @@ GitHub treats authentication and signing registrations separately. Therefore,
 scope refresh or endpoint access is unavailable, activation does not fail or
 request a secret; it prints the equivalent `gh ssh-key add` commands for
 manual execution.
+
+</details>
 
 When `--title` is omitted, the CLI generates a machine-specific title from the
 identity prefix, macOS `LocalHostName`, and the first part of the public-key
