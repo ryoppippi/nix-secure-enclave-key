@@ -217,6 +217,22 @@ private key.
 
 Use `--prompt-only` to print those commands without contacting GitHub.
 
+### Authorise automatic registration
+
+When `github.autoAdd = true`, `gh` must be authenticated with permission to
+read and add SSH authentication and signing keys. Refresh the GitHub CLI
+scopes before running `darwin-rebuild switch` or Home Manager activation:
+
+```text
+gh auth refresh --hostname github.com --scopes admin:ssh_signing_key,admin:public_key
+```
+
+GitHub treats authentication and signing registrations separately. Therefore,
+`--type both` may add the same public key twice, once for each purpose. If the
+scope refresh or endpoint access is unavailable, activation does not fail or
+request a secret; it prints the equivalent `gh ssh-key add` commands for
+manual execution.
+
 When `--title` is omitted, the CLI generates a machine-specific title from the
 identity prefix, macOS `LocalHostName`, and the first part of the public-key
 fingerprint. The default identity is titled like
