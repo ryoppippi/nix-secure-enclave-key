@@ -4,6 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -24,6 +28,7 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         inputs.treefmt-nix.flakeModule
+        inputs.git-hooks.flakeModule
       ];
 
       systems = [
@@ -38,7 +43,7 @@
             system = "aarch64-darwin";
             modules = [
               inputs.root.darwinModules.default
-              ({ ... }: {
+              (_: {
                 system.primaryUser = "nobody";
                 system.stateVersion = 6;
                 programs.nix-secure-enclave-key = {
@@ -60,26 +65,26 @@
             ];
           };
           darwin-config = darwin-system.config;
-          legacy-config-evaluation = builtins.tryEval (
-            (inputs.nix-darwin.lib.darwinSystem {
-              system = "aarch64-darwin";
-              modules = [
-                inputs.root.darwinModules.default
-                ({ ... }: {
-                  system.primaryUser = "nobody";
-                  system.stateVersion = 6;
-                  programs.nix-secure-enclave-key = {
-                    enable = true;
-                    keyFile = "~/.ssh/id_legacy";
-                    label = "legacy";
-                    protection = "none";
-                    autoEnsure = true;
-                    github.autoAdd = false;
-                  };
-                })
-              ];
-            }).config.system.build.toplevel.drvPath
-          );
+          legacy-config-evaluation =
+            builtins.tryEval
+              (inputs.nix-darwin.lib.darwinSystem {
+                system = "aarch64-darwin";
+                modules = [
+                  inputs.root.darwinModules.default
+                  (_: {
+                    system.primaryUser = "nobody";
+                    system.stateVersion = 6;
+                    programs.nix-secure-enclave-key = {
+                      enable = true;
+                      keyFile = "~/.ssh/id_legacy";
+                      label = "legacy";
+                      protection = "none";
+                      autoEnsure = true;
+                      github.autoAdd = false;
+                    };
+                  })
+                ];
+              }).config.system.build.toplevel.drvPath;
         in
         {
           treefmt = {
@@ -87,6 +92,8 @@
             projectRootFile = "flake.nix";
             programs = {
               nixfmt.enable = true;
+              deadnix.enable = true;
+              statix.enable = true;
               typos = {
                 enable = true;
                 configFile = "${./../typos.toml}";
@@ -160,13 +167,51 @@
                 touch "$out"
               '';
 
+          pre-commit = {
+            check.enable = false;
+            settings = {
+              src = ./..;
+              package = pkgs.prek;
+              hooks = {
+                treefmt = {
+                  enable = true;
+                  name = "treefmt";
+                  entry = "${pkgs.lib.getExe config.treefmt.build.wrapper} --no-cache";
+                  files = ".*";
+                  pass_filenames = true;
+                  stages = [ "pre-commit" ];
+                };
+                treefmt-check = {
+                  enable = true;
+                  name = "treefmt";
+                  entry = "${pkgs.lib.getExe config.treefmt.build.wrapper} --fail-on-change";
+                  files = ".*";
+                  pass_filenames = false;
+                  stages = [ "pre-push" ];
+                };
+                renovate-config-validator = {
+                  enable = true;
+                  entry = "${pkgs.lib.getExe' pkgs.renovate "renovate-config-validator"} --strict";
+                  files = "renovate\\.json5?$";
+                  pass_filenames = false;
+                  stages = [
+                    "pre-commit"
+                    "pre-push"
+                  ];
+                };
+              };
+            };
+          };
+
           devShells.default = pkgs.mkShellNoCC {
+            inherit (config.pre-commit) shellHook;
             packages = [
               config.treefmt.build.wrapper
               pkgs.nixd
               pkgs.nushell
               pkgs.typos
-            ];
+            ]
+            ++ config.pre-commit.settings.enabledPackages;
           };
         };
     };

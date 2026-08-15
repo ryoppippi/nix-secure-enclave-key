@@ -32,7 +32,6 @@ let
   ) cfg.identities;
   signing-identity-name = cfg.signingIdentity;
   signing-identity = lib.findFirst (identity: identity.name == signing-identity-name) null identities;
-  has-auto-ensure = lib.any (identity: identity.autoEnsure) identities;
   has-github-auto-add = lib.any (identity: identity.github.autoAdd) identities;
   signing-key-file = if signing-identity == null then "" else signing-identity.resolvedKeyFile;
   run-as-primary-user =

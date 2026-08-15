@@ -96,7 +96,7 @@ in
       enable = lib.mkDefault true;
       signing = {
         key = signing-key-file;
-        signByDefault = cfg.signByDefault;
+        inherit (cfg) signByDefault;
         signer = "${package}/bin/nix-secure-enclave-key-git-sign";
       };
       settings = {
