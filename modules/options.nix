@@ -71,7 +71,7 @@
     signByDefault = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Whether Git commits should be SSH-signed by default.";
+      description = "Whether Git commits and tags should be SSH-signed by default.";
     };
 
   };
