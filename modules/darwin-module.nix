@@ -83,6 +83,9 @@ let
       ${run-as-primary-user "/usr/bin/git"} config --global commit.gpgsign ${
         if cfg.signByDefault then "true" else "false"
       }
+      ${run-as-primary-user "/usr/bin/git"} config --global tag.gpgsign ${
+        if cfg.signByDefault then "true" else "false"
+      }
     ''}
 
     ${github-add-commands}

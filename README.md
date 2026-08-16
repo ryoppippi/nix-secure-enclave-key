@@ -282,7 +282,7 @@ Set `system.primaryUser`, then configure the module in the system configuration:
           };
         };
         signingIdentity = "git-signing"; # Select the identity used by Git SSH signing.
-        signByDefault = true; # Sign Git commits with the Secure Enclave-backed key.
+        signByDefault = true; # Sign Git commits and tags with the Secure Enclave-backed key.
       };
     })
   ];
@@ -330,7 +330,7 @@ fingerprint.
       };
     };
     signingIdentity = "git-signing"; # Select the identity used by Git SSH signing.
-    signByDefault = true; # Sign Git commits by default.
+    signByDefault = true; # Sign Git commits and tags by default.
   };
 }
 ```
@@ -378,7 +378,7 @@ Home Manager is optional. Import its module and use the same
       };
     };
     signingIdentity = "git-signing"; # Select the identity used by Git SSH signing.
-    signByDefault = true; # Make Git SSH signing the default for commits.
+    signByDefault = true; # Make Git SSH signing the default for commits and tags.
   };
 }
 ```
