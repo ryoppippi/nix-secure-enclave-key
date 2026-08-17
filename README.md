@@ -389,6 +389,10 @@ run during user activation. GitHub registration remains skipped unless
 
 </details>
 
+For a real-world configuration, see the Home Manager module in use in
+[ryoppippi's dotfiles](https://github.com/ryoppippi/dotfiles/blob/d263d8f4485dab1bf0745f4f48977d76f9a338cb/flake.nix#L629-L646),
+where it is imported through nix-darwin's Home Manager integration.
+
 ## CTK certificate operations
 
 <details>
