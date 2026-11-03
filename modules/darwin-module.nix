@@ -1,5 +1,3 @@
-{ self }:
-
 {
   config,
   lib,
@@ -9,7 +7,7 @@
 
 let
   cfg = config.programs.nix-secure-enclave-key;
-  package = self.packages.${pkgs.system}.default;
+  package = pkgs.callPackage ../package.nix { };
   primaryUser = config.system.primaryUser;
   primaryUserHome = lib.optionalString (primaryUser != null) config.system.primaryUserHome;
   resolve-key-file =

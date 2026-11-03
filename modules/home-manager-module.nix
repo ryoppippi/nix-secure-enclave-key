@@ -1,5 +1,3 @@
-{ self }:
-
 {
   config,
   lib,
@@ -9,7 +7,7 @@
 
 let
   cfg = config.programs.nix-secure-enclave-key;
-  package = self.packages.${pkgs.system}.default;
+  package = pkgs.callPackage ../package.nix { };
   security-key-provider = "/usr/lib/ssh-keychain.dylib";
   resolve-key-file =
     keyFile:

@@ -7,7 +7,7 @@
   };
 
   outputs =
-    inputs@{ self, flake-parts, ... }:
+    inputs@{ flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = [
         "aarch64-darwin"
@@ -24,8 +24,8 @@
           nix-secure-enclave-key = final.callPackage ./package.nix { };
         };
 
-        darwinModules.default = import ./modules/darwin-module.nix { inherit self; };
-        homeManagerModules.default = import ./modules/home-manager-module.nix { inherit self; };
+        darwinModules.default = ./modules/darwin-module.nix;
+        homeManagerModules.default = ./modules/home-manager-module.nix;
       };
     };
 }
