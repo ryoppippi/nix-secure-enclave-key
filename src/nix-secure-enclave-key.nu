@@ -669,8 +669,8 @@ def github-key-matches [entry: record, expected: record]: nothing -> bool {
 def registration-prompt [public_file: string, key_type: string, title: string] {
     let quoted_file = (shell-quote $public_file)
     let quoted_title = (shell-quote $title)
-    print "この公開鍵をGitHubへ登録してください。"
-    print "秘密鍵はSecure Enclave内にあり、取得・コピーしてはいけません。"
+    print "Register this public key with GitHub:"
+    print "The private key lives in the Secure Enclave and cannot be exported or copied."
     print $"gh ssh-key add ($quoted_file) --type ($key_type) --title ($quoted_title)"
 }
 
