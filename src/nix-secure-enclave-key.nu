@@ -118,7 +118,9 @@ def key-state [key_file: string]: nothing -> record {
 
 def require-complete-key-pair [state: record] {
     if $state.key_exists != $state.public_exists {
-        error make {msg: $"incomplete SSH key/reference pair: ($state.key_file) and ($state.public_file) must either both exist or both be absent"}
+        error make {
+            msg: $"incomplete SSH key/reference pair: ($state.key_file) and ($state.public_file) must either both exist or both be absent"
+        }
     }
 }
 
@@ -259,10 +261,14 @@ def select-generated-pair [pairs: list<record>, identity_hash: string]: nothing 
         (public-key-fingerprint $pair.public_file) == $identity_hash
     })
     if ($matches | is-empty) {
-        error make {msg: $"ssh-keygen did not return a stub for Secure Enclave identity: ($identity_hash)"}
+        error make {
+            msg: $"ssh-keygen did not return a stub for Secure Enclave identity: ($identity_hash)"
+        }
     }
     if ($matches | length) > 1 {
-        error make {msg: $"ssh-keygen returned duplicate stubs for Secure Enclave identity: ($identity_hash)"}
+        error make {
+            msg: $"ssh-keygen returned duplicate stubs for Secure Enclave identity: ($identity_hash)"
+        }
     }
     $matches.0
 }
@@ -275,10 +281,14 @@ def select-agent-public-key [public_keys: string, identity_hash: string]: nothin
         | where {|line| (public-key-fingerprint-for-line $line) == $identity_hash}
     )
     if ($matches | is-empty) {
-        error make {msg: $"ssh-agent did not return a Secure Enclave identity: ($identity_hash)"}
+        error make {
+            msg: $"ssh-agent did not return a Secure Enclave identity: ($identity_hash)"
+        }
     }
     if ($matches | length) > 1 {
-        error make {msg: $"ssh-agent returned duplicate Secure Enclave identities: ($identity_hash)"}
+        error make {
+            msg: $"ssh-agent returned duplicate Secure Enclave identities: ($identity_hash)"
+        }
     }
     $matches.0
 }
@@ -394,7 +404,9 @@ def generate-ssh-stub [key_file: string, identity_hash: string, provider_hash: s
     }
     if ($matches | length) > 1 {
         remove-temporary-directory $temporary
-        error make {msg: $"ssh-keygen returned duplicate stubs for Secure Enclave identity: ($identity_hash)"}
+        error make {
+            msg: $"ssh-keygen returned duplicate stubs for Secure Enclave identity: ($identity_hash)"
+        }
     }
     remove-temporary-directory $temporary
 
@@ -467,7 +479,9 @@ def parse-public-key [contents: string]: nothing -> record {
 def read-public-key [key_file: string]: nothing -> record {
     let state = (key-state $key_file)
     if not $state.public_exists {
-        error make {msg: $"public key not found: ($state.public_file); run 'nix-secure-enclave-key setup' first"}
+        error make {
+            msg: $"public key not found: ($state.public_file); run 'nix-secure-enclave-key setup' first"
+        }
     }
     parse-public-key (open --raw $state.public_file)
 }

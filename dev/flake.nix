@@ -89,7 +89,7 @@
         {
           treefmt = {
             projectRoot = ./..;
-            projectRootFile = "flake.nix";
+            projectRootFile = null;
             programs = {
               nixfmt.enable = true;
               deadnix.enable = true;
