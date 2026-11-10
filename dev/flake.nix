@@ -36,9 +36,14 @@
       ];
 
       perSystem =
-        { config, pkgs, ... }:
+        {
+          config,
+          inputs',
+          pkgs,
+          ...
+        }:
         let
-          package = inputs.root.packages.${pkgs.stdenv.hostPlatform.system}.default;
+          package = inputs'.root.packages.default;
           darwin-system = inputs.nix-darwin.lib.darwinSystem {
             system = "aarch64-darwin";
             modules = [
