@@ -93,7 +93,7 @@ def identity-hash-for-label [identities: string, label: string]: nothing -> stri
     $fields.1
 }
 
-def create-identity [label: string, protection: string] {
+def create-identity [label: string, protection: string]: nothing -> string {
     let result = (run-sc-auth [
         "create-ctk-identity"
         "-l"
@@ -103,7 +103,20 @@ def create-identity [label: string, protection: string] {
         "-t"
         $protection
     ])
-    checked-output $result "sc_auth create-ctk-identity" | ignore
+    let output = checked-output $result "sc_auth create-ctk-identity"
+
+    # sc_auth can exit 0 without creating anything, so confirm the identity is listed.
+    let identities = (list-ssh-identities)
+    if not (identity-has-label $identities $label) {
+        let detail = [$output $result.stderr] | str join "\n" | str trim
+        let message = if ($detail | is-empty) {
+            $"sc_auth create-ctk-identity exited successfully but did not create an SSH identity labelled ($label)"
+        } else {
+            $"sc_auth create-ctk-identity exited successfully but did not create an SSH identity labelled ($label): ($detail)"
+        }
+        error make {msg: $message}
+    }
+    $identities
 }
 
 def key-state [key_file: string]: nothing -> record {
@@ -424,15 +437,9 @@ def ensure-configuration [key_file: string, label: string, protection: string]: 
     require-complete-key-pair $state
 
     let identities = (list-ssh-identities)
-    let identity_created = if (identity-has-label $identities $label) {
-        false
-    } else {
-        create-identity $label $protection
-        true
-    }
-
+    let identity_created = not (identity-has-label $identities $label)
     let identities_after_creation = if $identity_created {
-        list-ssh-identities
+        create-identity $label $protection
     } else {
         $identities
     }
