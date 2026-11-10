@@ -798,11 +798,11 @@ def "main doctor" [
     if $sc_auth_available {
         let result = (run-sc-auth ["list-ctk-identities", "-t", "ssh", "-e", "b64"])
         if $result.exit_code == 0 {
-            let identity_lines = $result.stdout | lines | length
+            let identity_count = identity-lines $result.stdout | length
             (print-doctor-check
                 "CTK SSH identities"
-                "ok"
-                $"($identity_lines) output lines"
+                (if $identity_count > 0 { "ok" } else { "missing" })
+                $"($identity_count) identities"
             )
         } else {
             (print-doctor-check
