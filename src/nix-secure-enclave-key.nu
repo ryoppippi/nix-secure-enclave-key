@@ -110,9 +110,9 @@ def create-identity [label: string, protection: string]: nothing -> string {
     if not (identity-has-label $identities $label) {
         let detail = [$output $result.stderr] | str join "\n" | str trim
         let message = if ($detail | is-empty) {
-            $"sc_auth create-ctk-identity exited successfully but did not create an SSH identity labelled ($label)"
+            $"sc_auth create-ctk-identity exited successfully but did not create an SSH identity labeled ($label)"
         } else {
-            $"sc_auth create-ctk-identity exited successfully but did not create an SSH identity labelled ($label): ($detail)"
+            $"sc_auth create-ctk-identity exited successfully but did not create an SSH identity labeled ($label): ($detail)"
         }
         error make {msg: $message}
     }
